@@ -1,6 +1,7 @@
 /**
- * HID Authenticator Frontend Application (HIDShield-X MVP)
+ * HID Authenticator Frontend Application
  * Handles live WebSockets, device approval workflows, trust revocation, and peripheral simulation.
+ * Craft-first, anti-slop implementation.
  */
 
 // Application State
@@ -50,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // -------------------------------------------------------------
-// WebSocket Live Connection
+// WebSocket Connection
 // -------------------------------------------------------------
 function initWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -60,7 +61,7 @@ function initWebSocket() {
 
   ws.onopen = () => {
     wsDot.classList.add('online');
-    wsStatusText.textContent = 'Live System Sync';
+    wsStatusText.textContent = 'Active Sync';
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
@@ -78,9 +79,9 @@ function initWebSocket() {
 
   ws.onclose = () => {
     wsDot.classList.remove('online');
-    wsStatusText.textContent = 'Reconnecting...';
+    wsStatusText.textContent = 'Disconnected';
     if (!reconnectTimer) {
-      reconnectTimer = setTimeout(initWebSocket, 3000);
+      reconnectTimer = setTimeout(initWebSocket, 2500);
     }
   };
 
@@ -90,26 +91,25 @@ function initWebSocket() {
 }
 
 function handleLiveEvent(data) {
-  // Real-time event dispatch
   switch (data.type) {
     case 'auth_requested':
-      showToast(`New peripheral detected: ${data.device.device_name || 'USB HID'}`, 'warning');
+      showToast(`Review required: ${data.device.device_name || 'USB HID'}`, 'warning');
       refreshAllData();
       promptDeviceApproval(data.device, data.prompt);
       break;
 
     case 'device_approved':
-      showToast(`Device '${data.device.device_name}' approved and trusted.`, 'success');
+      showToast(`Authorized: ${data.device.device_name}`, 'success');
       refreshAllData();
       break;
 
     case 'device_rejected':
-      showToast(`Device '${data.device.device_name}' rejected.`, 'danger');
+      showToast(`Declined: ${data.device.device_name}`, 'danger');
       refreshAllData();
       break;
 
     case 'trust_revoked':
-      showToast(`Trust revoked for '${data.device.device_name}'.`, 'info');
+      showToast(`Revoked: ${data.device.device_name}`, 'info');
       refreshAllData();
       break;
 
@@ -118,7 +118,7 @@ function handleLiveEvent(data) {
       break;
 
     case 'device_disconnected':
-      showToast(`Device '${data.device.device_name}' disconnected.`, 'info');
+      showToast(`Detached: ${data.device.device_name}`, 'info');
       refreshAllData();
       break;
 
@@ -173,7 +173,7 @@ async function loadPendingDevices() {
     const res = await fetch('/api/devices?status=pending_authentication');
     if (res.ok) {
       const devices = await res.json();
-      pendingCountBadge.textContent = `${devices.length} awaiting review`;
+      pendingCountBadge.textContent = devices.length;
 
       if (devices.length === 0) {
         pendingEmpty.style.display = 'block';
@@ -191,39 +191,39 @@ async function loadPendingDevices() {
 function renderPendingCard(device) {
   return `
     <div class="pending-card">
-      <div class="pending-card-header">
+      <div class="pending-card-top">
         <div>
           <div class="pending-card-title">${escapeHtml(device.device_name || 'USB HID Peripheral')}</div>
-          <div class="pending-card-subtitle">${escapeHtml(device.manufacturer || 'Standard USB Device')}</div>
+          <div class="pending-card-mfg">${escapeHtml(device.manufacturer || 'Standard USB Device')}</div>
         </div>
-        <span class="badge badge-pending">Pending Approval</span>
+        <span class="badge badge-pending">Review</span>
       </div>
 
-      <div class="pending-card-meta">
-        <div class="meta-field">
-          <span class="meta-key">VID / PID</span>
-          <span class="meta-val font-mono">${device.vendor_id || '—'}:${device.product_id || '—'}</span>
+      <div class="spec-strip">
+        <div class="spec-cell">
+          <span class="spec-cell-label">Hardware ID</span>
+          <span class="spec-cell-val font-mono">${device.vendor_id || '—'}:${device.product_id || '—'}</span>
         </div>
-        <div class="meta-field">
-          <span class="meta-key">Interface</span>
-          <span class="meta-val">${device.interface_type || 'HID'}</span>
+        <div class="spec-cell">
+          <span class="spec-cell-label">Interface</span>
+          <span class="spec-cell-val">${device.interface_type || 'HID'}</span>
         </div>
-        <div class="meta-field">
-          <span class="meta-key">Serial</span>
-          <span class="meta-val font-mono">${device.serial_number || 'Unavailable'}</span>
+        <div class="spec-cell">
+          <span class="spec-cell-label">Serial</span>
+          <span class="spec-cell-val font-mono">${device.serial_number || 'None'}</span>
         </div>
-        <div class="meta-field">
-          <span class="meta-key">Connection</span>
-          <span class="meta-val">${device.connection_type || 'USB'}</span>
+        <div class="spec-cell">
+          <span class="spec-cell-label">Bus</span>
+          <span class="spec-cell-val">${device.connection_type || 'USB'}</span>
         </div>
       </div>
 
-      <div class="pending-card-actions">
-        <button class="btn btn-danger btn-sm" style="flex:1" onclick="handleRejectDevice(${device.id})">
-          ✕ Reject
+      <div class="pending-actions">
+        <button class="btn btn-danger-ghost btn-sm" style="flex:1" onclick="handleRejectDevice(${device.id})">
+          Decline
         </button>
-        <button class="btn btn-success btn-sm" style="flex:1.2" onclick="handleApproveDevice(${device.id})">
-          ✓ Approve
+        <button class="btn btn-primary btn-sm" style="flex:1.2" onclick="handleApproveDevice(${device.id})">
+          Approve
         </button>
       </div>
     </div>
@@ -238,27 +238,27 @@ async function loadTrustedDevices() {
       tabCountTrusted.textContent = devices.length;
 
       if (devices.length === 0) {
-        trustedTbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">No trusted devices registered yet. Approve connected devices to add them here.</td></tr>`;
+        trustedTbody.innerHTML = `<tr><td colspan="8" class="empty-table-cell">No trusted devices registered yet. Peripherals you approve will be listed here.</td></tr>`;
       } else {
         trustedTbody.innerHTML = devices.map(d => `
           <tr>
             <td>
               <div class="font-bold">${escapeHtml(d.device_name || 'Unknown')}</div>
-              <div class="text-muted text-sm">${escapeHtml(d.product_string || '')}</div>
+              <div class="text-muted text-sm">${escapeHtml(d.manufacturer || '')}</div>
             </td>
-            <td class="font-mono">${d.vendor_id || '—'}:${d.product_id || '—'}</td>
-            <td class="font-mono text-sm">${d.serial_number || '<span class="text-muted">Unavailable</span>'}</td>
-            <td>${escapeHtml(d.manufacturer || 'Standard')}</td>
+            <td class="font-mono text-sm">${d.vendor_id || '—'}:${d.product_id || '—'}</td>
+            <td class="font-mono text-sm">${d.serial_number || '<span class="text-muted">None</span>'}</td>
+            <td>${escapeHtml(d.interface_type || 'HID')}</td>
             <td>
-              <span class="badge ${d.is_connected ? 'badge-connected' : 'badge-disconnected'}">
-                ${d.is_connected ? '● Connected' : '○ Disconnected'}
+              <span class="${d.is_connected ? 'badge-conn-active' : 'badge-conn-offline'}">
+                ${d.is_connected ? 'Active' : 'Offline'}
               </span>
             </td>
             <td class="text-sm">${formatDate(d.approved_at)}</td>
             <td class="text-sm">${formatDate(d.last_connected_at)}</td>
-            <td>
-              <button class="btn btn-danger btn-sm" onclick="promptRevokeTrust(${d.id}, '${escapeHtml(d.device_name || '')}', '${d.vendor_id || ''}:${d.product_id || ''}')">
-                Revoke Trust
+            <td class="text-right">
+              <button class="btn btn-danger-ghost btn-sm" onclick="promptRevokeTrust(${d.id}, '${escapeHtml(d.device_name || '')}', '${d.vendor_id || ''}:${d.product_id || ''}')">
+                Revoke
               </button>
             </td>
           </tr>
@@ -278,7 +278,7 @@ async function loadAllDevices() {
       tabCountAll.textContent = devices.length;
 
       if (devices.length === 0) {
-        allDevicesTbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">No devices recorded.</td></tr>`;
+        allDevicesTbody.innerHTML = `<tr><td colspan="8" class="empty-table-cell">No peripherals found.</td></tr>`;
       } else {
         allDevicesTbody.innerHTML = devices.map(d => `
           <tr>
@@ -287,16 +287,16 @@ async function loadAllDevices() {
               <div class="font-bold">${escapeHtml(d.device_name || 'Unknown')}</div>
               <div class="text-muted text-sm">${escapeHtml(d.manufacturer || '')}</div>
             </td>
-            <td class="font-mono">${d.vendor_id || '—'}:${d.product_id || '—'}</td>
-            <td class="font-mono text-sm">${d.serial_number || '<span class="text-muted">Unavailable</span>'}</td>
+            <td class="font-mono text-sm">${d.vendor_id || '—'}:${d.product_id || '—'}</td>
+            <td class="font-mono text-sm">${d.serial_number || '<span class="text-muted">None</span>'}</td>
             <td>${d.interface_type || 'HID'}</td>
             <td>
-              <span class="badge ${d.is_connected ? 'badge-connected' : 'badge-disconnected'}">
-                ${d.is_connected ? '● Active' : '○ Offline'}
+              <span class="${d.is_connected ? 'badge-conn-active' : 'badge-conn-offline'}">
+                ${d.is_connected ? 'Active' : 'Offline'}
               </span>
             </td>
             <td class="text-sm">${formatDate(d.last_connected_at)}</td>
-            <td>
+            <td class="text-right">
               ${renderDeviceActionButtons(d)}
             </td>
           </tr>
@@ -310,9 +310,9 @@ async function loadAllDevices() {
 
 function renderDeviceActionButtons(d) {
   if (d.status === 'authenticated') {
-    return `<button class="btn btn-danger btn-sm" onclick="promptRevokeTrust(${d.id}, '${escapeHtml(d.device_name || '')}', '${d.vendor_id || ''}:${d.product_id || ''}')">Revoke</button>`;
+    return `<button class="btn btn-danger-ghost btn-sm" onclick="promptRevokeTrust(${d.id}, '${escapeHtml(d.device_name || '')}', '${d.vendor_id || ''}:${d.product_id || ''}')">Revoke</button>`;
   } else if (d.status === 'pending_authentication' || d.status === 'trust_revoked' || d.status === 'rejected') {
-    return `<button class="btn btn-success btn-sm" onclick="handleApproveDevice(${d.id})">Approve</button>`;
+    return `<button class="btn btn-primary btn-sm" onclick="handleApproveDevice(${d.id})">Approve</button>`;
   }
   return '—';
 }
@@ -331,7 +331,7 @@ async function loadHistory() {
       tabCountHistory.textContent = events.length;
 
       if (events.length === 0) {
-        historyTbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No events recorded.</td></tr>`;
+        historyTbody.innerHTML = `<tr><td colspan="5" class="empty-table-cell">No audit records found.</td></tr>`;
       } else {
         historyTbody.innerHTML = events.map(e => `
           <tr>
@@ -351,38 +351,36 @@ async function loadHistory() {
 
 async function loadSimulatorData() {
   try {
-    // Load presets
     const pRes = await fetch('/api/simulator/presets');
     if (pRes.ok) {
       const presets = await pRes.json();
       presetContainer.innerHTML = presets.map(p => `
-        <div class="preset-card">
+        <div class="preset-chip">
           <div>
-            <h5>${escapeHtml(p.device_name)}</h5>
-            <p>${escapeHtml(p.manufacturer)} &bull; VID: ${p.vendor_id} PID: ${p.product_id}</p>
+            <div class="preset-chip-title">${escapeHtml(p.device_name)}</div>
+            <div class="preset-chip-meta">${p.vendor_id}:${p.product_id} &bull; ${escapeHtml(p.manufacturer)}</div>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="simulatePresetPlugIn(${JSON.stringify(p).replace(/"/g, '&quot;')})">
-            🔌 Plug In
+          <button class="btn btn-primary btn-sm" onclick="simulatePresetPlugIn(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+            Attach
           </button>
         </div>
       `).join('');
     }
 
-    // Load active simulations
     const aRes = await fetch('/api/simulator/active');
     if (aRes.ok) {
       const active = await aRes.json();
       if (active.length === 0) {
-        activeSimsList.innerHTML = `<div class="empty-state"><p>No simulated peripherals currently attached.</p></div>`;
+        activeSimsList.innerHTML = `<div class="empty-tray"><div class="empty-tray-desc">No simulated peripherals currently attached.</div></div>`;
       } else {
         activeSimsList.innerHTML = active.map(a => `
-          <div class="active-sim-item">
+          <div class="active-device-row">
             <div>
-              <div class="font-bold">${escapeHtml(a.device_name)}</div>
+              <div class="font-bold text-sm">${escapeHtml(a.device_name)}</div>
               <div class="text-sm text-muted font-mono">${a.hardware_id}</div>
             </div>
-            <button class="btn btn-danger btn-sm" onclick="simulateUnplug('${escapeHtml(a.hardware_id)}')">
-              Unplug
+            <button class="btn btn-danger-ghost btn-sm" onclick="simulateUnplug('${escapeHtml(a.hardware_id)}')">
+              Detach
             </button>
           </div>
         `).join('');
@@ -394,17 +392,16 @@ async function loadSimulatorData() {
 }
 
 // -------------------------------------------------------------
-// Interactive Approval & Rejection Workflows
+// Interactive Approval & Rejection
 // -------------------------------------------------------------
 function promptDeviceApproval(device, promptText) {
   currentPendingDeviceId = device.id;
 
-  document.getElementById('modal-prompt-text').textContent = promptText || "This device has not been registered. Do you want to approve it?";
-  document.getElementById('modal-dev-name').textContent = device.device_name || "USB Human Interface Device";
+  document.getElementById('modal-prompt-text').textContent = promptText || "This peripheral is not registered. Authorize for this workstation?";
+  document.getElementById('modal-dev-name').textContent = device.device_name || "USB Peripheral";
   document.getElementById('modal-dev-mfg').textContent = device.manufacturer || "Standard USB Device";
-  document.getElementById('modal-dev-vid').textContent = device.vendor_id || "Unavailable";
-  document.getElementById('modal-dev-pid').textContent = device.product_id || "Unavailable";
-  document.getElementById('modal-dev-serial').textContent = device.serial_number || "Unavailable";
+  document.getElementById('modal-dev-vidpid').textContent = `${device.vendor_id || '—'}:${device.product_id || '—'}`;
+  document.getElementById('modal-dev-serial').textContent = device.serial_number || "None";
   document.getElementById('modal-dev-interface').textContent = device.interface_type || "HID";
 
   authModal.classList.add('show');
@@ -423,10 +420,10 @@ async function handleApproveDevice(deviceId) {
       refreshAllData();
     } else {
       const err = await res.json();
-      showToast(err.detail || 'Failed to approve device', 'danger');
+      showToast(err.detail || 'Authorization failed', 'danger');
     }
   } catch (e) {
-    showToast('Network error while approving device', 'danger');
+    showToast('Network error while authorizing device', 'danger');
   }
 }
 
@@ -438,15 +435,15 @@ async function handleRejectDevice(deviceId) {
       refreshAllData();
     } else {
       const err = await res.json();
-      showToast(err.detail || 'Failed to reject device', 'danger');
+      showToast(err.detail || 'Decline failed', 'danger');
     }
   } catch (e) {
-    showToast('Network error while rejecting device', 'danger');
+    showToast('Network error while declining device', 'danger');
   }
 }
 
 // -------------------------------------------------------------
-// Revocation Workflow (FR-07)
+// Revocation
 // -------------------------------------------------------------
 function promptRevokeTrust(deviceId, name, vidpid) {
   currentRevokeDeviceId = deviceId;
@@ -488,7 +485,7 @@ async function simulatePresetPlugIn(preset) {
       body: JSON.stringify(preset)
     });
     if (res.ok) {
-      showToast(`Simulated connection: ${preset.device_name}`, 'info');
+      showToast(`Attached: ${preset.device_name}`, 'info');
       refreshAllData();
     }
   } catch (e) {
@@ -504,27 +501,30 @@ async function simulateUnplug(hardwareId) {
       body: JSON.stringify({ hardware_id: hardwareId })
     });
     if (res.ok) {
-      showToast(`Simulated unplug: ${hardwareId}`, 'info');
+      showToast(`Detached: ${hardwareId}`, 'info');
       refreshAllData();
     }
   } catch (e) {
-    showToast('Unplug simulation failed', 'danger');
+    showToast('Detach simulation failed', 'danger');
   }
 }
 
 // -------------------------------------------------------------
-// Helpers, UI Tabs, Events
+// Navigation Tabs & Event Listeners
 // -------------------------------------------------------------
 function setupTabs() {
-  const tabs = document.querySelectorAll('.tab-btn');
+  const tabs = document.querySelectorAll('.view-tab');
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       tabs.forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-view').forEach(p => p.classList.remove('active'));
 
       tab.classList.add('active');
       const targetId = tab.getAttribute('data-tab');
-      document.getElementById(targetId).classList.add('active');
+      const targetPanel = document.getElementById(targetId);
+      if (targetPanel) {
+        targetPanel.classList.add('active');
+      }
     });
   });
 }
@@ -564,7 +564,7 @@ function setupEventListeners() {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        showToast(`Connected custom device: ${payload.device_name}`, 'info');
+        showToast(`Attached: ${payload.device_name}`, 'info');
         customSimForm.reset();
         refreshAllData();
       }
@@ -584,22 +584,22 @@ function showToast(message, type = 'info') {
 
   setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transform = 'translateX(100%)';
-    toast.style.transition = 'all 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
+    toast.style.transform = 'translateY(8px)';
+    toast.style.transition = 'all 150ms ease';
+    setTimeout(() => toast.remove(), 200);
+  }, 3500);
 }
 
 function renderStatusBadge(status) {
   switch (status) {
     case 'authenticated':
-      return `<span class="badge badge-authenticated">● Authenticated</span>`;
+      return `<span class="badge badge-authenticated">Approved</span>`;
     case 'pending_authentication':
-      return `<span class="badge badge-pending">⏳ Pending</span>`;
+      return `<span class="badge badge-pending">Review</span>`;
     case 'rejected':
-      return `<span class="badge badge-rejected">✕ Rejected</span>`;
+      return `<span class="badge badge-rejected">Declined</span>`;
     case 'trust_revoked':
-      return `<span class="badge badge-revoked">⊘ Revoked</span>`;
+      return `<span class="badge badge-revoked">Revoked</span>`;
     default:
       return `<span class="badge badge-not-auth">${status}</span>`;
   }
@@ -610,17 +610,17 @@ function renderEventBadge(type) {
     case 'approved':
       return `<span class="badge badge-authenticated">Approved</span>`;
     case 'rejected':
-      return `<span class="badge badge-rejected">Rejected</span>`;
+      return `<span class="badge badge-rejected">Declined</span>`;
     case 'trust_revoked':
-      return `<span class="badge badge-revoked">Trust Revoked</span>`;
+      return `<span class="badge badge-revoked">Revoked</span>`;
     case 'auth_requested':
-      return `<span class="badge badge-pending">Auth Requested</span>`;
+      return `<span class="badge badge-pending">Review Required</span>`;
     case 'detected':
       return `<span class="badge badge-not-auth">Detected</span>`;
     case 'connected':
-      return `<span class="badge badge-connected">Connected</span>`;
+      return `<span class="badge badge-authenticated">Connected</span>`;
     case 'disconnected':
-      return `<span class="badge badge-disconnected">Disconnected</span>`;
+      return `<span class="badge badge-not-auth">Disconnected</span>`;
     default:
       return `<span class="badge badge-not-auth">${type}</span>`;
   }
@@ -632,7 +632,7 @@ function formatDate(isoStr) {
     const d = new Date(isoStr);
     return d.toLocaleString(undefined, {
       month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
+      hour: '2-digit', minute: '2-digit'
     });
   } catch (e) {
     return isoStr;
@@ -645,7 +645,7 @@ function formatDetails(details) {
     if (typeof details === 'object') {
       const keys = Object.keys(details);
       if (keys.length === 0) return '';
-      return keys.map(k => `${k}: ${details[k]}`).join(' | ');
+      return keys.map(k => `${k}: ${details[k]}`).join(' · ');
     }
     return String(details);
   } catch (e) {
