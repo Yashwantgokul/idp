@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HID Authenticator — Peripheral Trust Manager (HIDShield-X)</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+      <div class="nav-brand">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="6" width="20" height="12" rx="3"></rect>
+            <path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">HID Authenticator</h1>
+          <span class="brand-subtitle">HIDShield-X Trust Manager &bull; MVP v1.0</span>
+        </div>
+      </div>
+
+      <div class="nav-system-status">
+        <div class="status-indicator">
+          <span class="pulse-dot" id="ws-dot"></span>
+          <span id="ws-status-text">Connecting...</span>
+        </div>
+        <div class="badge platform-badge" id="platform-badge">
+          <span id="platform-name">Windows</span> Adapter Active
+        </div>
+      </div>
+    </header>
+
+    <!-- Disclaimer Banner (PRD FR-06 & Section 1) -->
+    <div class="disclaimer-banner">
+      <div class="disclaimer-icon">ℹ️</div>
+      <div class="disclaimer-content">
+        <strong>Trust Management Scope:</strong> HID Authenticator maintains application-level peripheral registration and approval. Rejection or revocation marks devices as untrusted in this registry; OS-level input blocking requires separate kernel/hardware enforcement.
+      </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="dashboard-content">
+      <!-- Section 1: Overview KPIs (PRD FR-09) -->
+      <section class="kpi-grid">
+        <div class="kpi-card" id="kpi-connected">
+          <div class="kpi-icon icon-connected">⚡</div>
+          <div class="kpi-data">
+            <span class="kpi-value" id="count-connected">0</span>
+            <span class="kpi-label">Connected Devices</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" id="kpi-pending">
+          <div class="kpi-icon icon-pending">⏳</div>
+          <div class="kpi-data">
+            <span class="kpi-value highlight-amber" id="count-pending">0</span>
+            <span class="kpi-label">Pending Approval</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" id="kpi-trusted">
+          <div class="kpi-icon icon-trusted">🛡️</div>
+          <div class="kpi-data">
+            <span class="kpi-value highlight-emerald" id="count-trusted">0</span>
+            <span class="kpi-label">Trusted Registry</span>
+          </div>
+        </div>
+
+        <div class="kpi-card" id="kpi-events">
+          <div class="kpi-icon icon-events">📜</div>
+          <div class="kpi-data">
+            <span class="kpi-value" id="count-events">0</span>
+            <span class="kpi-label">Logged Events</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Pending Authentication Queue (FR-04, FR-09) -->
+      <section class="dashboard-section" id="section-pending">
+        <div class="section-header">
+          <div class="section-title-wrap">
+            <h2>Pending Authentication</h2>
+            <span class="section-badge badge-warning" id="pending-count-badge">0 awaiting review</span>
+          </div>
+          <span class="section-hint">Devices requiring explicit approval before being trusted</span>
+        </div>
+
+        <div id="pending-container" class="pending-list-container">
+          <div class="empty-state" id="pending-empty">
+            <div class="empty-icon">✓</div>
+            <h3>No Devices Pending Approval</h3>
+            <p>All connected USB Human Interface Devices are registered or handled.</p>
+          </div>
+          <div id="pending-cards" class="card-grid"></div>
+        </div>
+      </section>
+
+      <!-- Section 3: Navigation Tabs for Main Tables -->
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="tab-trusted">
+          <span>Trusted Registry</span>
+          <span class="tab-count" id="tab-count-trusted">0</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-all-devices">
+          <span>All Discovered Devices</span>
+          <span class="tab-count" id="tab-count-all">0</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-history">
+          <span>Authentication History</span>
+          <span class="tab-count" id="tab-count-history">0</span>
+        </button>
+        <button class="tab-btn highlight-tab" data-tab="tab-simulator">
+          <span>🧪 Simulator Studio</span>
+        </button>
+      </div>
+
+      <!-- Tab Content: Trusted Devices (FR-03, FR-07, FR-09) -->
+      <section class="tab-panel active" id="tab-trusted">
+        <div class="panel-header">
+          <div>
+            <h3>Registered & Trusted Peripherals</h3>
+            <p>These peripherals have been approved and can be used on this system.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-trusted">↻ Refresh</button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="trusted-table">
+            <thead>
+              <tr>
+                <th>Device Name</th>
+                <th>VID:PID</th>
+                <th>Serial Number</th>
+                <th>Manufacturer</th>
+                <th>Connection</th>
+                <th>Approved Date</th>
+                <th>Last Active</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="trusted-tbody">
+              <tr>
+                <td colspan="8" class="text-center py-4 text-muted">No trusted devices registered yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tab Content: All Devices -->
+      <section class="tab-panel" id="tab-all-devices">
+        <div class="panel-header">
+          <div>
+            <h3>All Registered Peripherals</h3>
+            <p>Comprehensive registry of all devices encountered (Authenticated, Pending, Rejected, Revoked).</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-all">↻ Refresh</button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="all-devices-table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Device Name</th>
+                <th>VID:PID</th>
+                <th>Serial</th>
+                <th>Category</th>
+                <th>State</th>
+                <th>Last Connected</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="all-devices-tbody">
+              <tr>
+                <td colspan="8" class="text-center py-4 text-muted">No devices recorded.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tab Content: History (FR-08) -->
+      <section class="tab-panel" id="tab-history">
+        <div class="panel-header">
+          <div>
+            <h3>Authentication & Event Audit Trail</h3>
+            <p>Chronological record of detections, approvals, rejections, revocations, and disconnections.</p>
+          </div>
+          <div class="filter-group">
+            <select id="history-filter-type" class="form-select form-select-sm">
+              <option value="">All Event Types</option>
+              <option value="detected">Detected</option>
+              <option value="auth_requested">Auth Requested</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="trust_revoked">Trust Revoked</option>
+              <option value="connected">Connected</option>
+              <option value="disconnected">Disconnected</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-history">↻ Refresh</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="history-table">
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Event</th>
+                <th>Device</th>
+                <th>Identifiers</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              <tr>
+                <td colspan="5" class="text-center py-4 text-muted">No events recorded.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tab Content: Simulator Studio -->
+      <section class="tab-panel" id="tab-simulator">
+        <div class="simulator-wrapper">
+          <div class="simulator-left">
+            <h3>Quick Peripheral Simulation</h3>
+            <p class="text-muted">Simulate plugging in real-world peripherals to test detection, prompt, approval, rejection, and disconnect workflows.</p>
+
+            <div class="preset-cards" id="preset-container">
+              <!-- Dynamically populated presets -->
+            </div>
+
+            <hr class="divider">
+
+            <h4>Custom Peripheral Creator</h4>
+            <form id="custom-sim-form" class="custom-sim-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="custom-name">Device Name *</label>
+                  <input type="text" id="custom-name" class="form-control" required placeholder="e.g. Corsair K70 Keyboard">
+                </div>
+                <div class="form-group">
+                  <label for="custom-mfg">Manufacturer</label>
+                  <input type="text" id="custom-mfg" class="form-control" placeholder="e.g. Corsair Gaming">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="custom-vid">Vendor ID (VID)</label>
+                  <input type="text" id="custom-vid" class="form-control font-mono" maxlength="4" placeholder="1B1C">
+                </div>
+                <div class="form-group">
+                  <label for="custom-pid">Product ID (PID)</label>
+                  <input type="text" id="custom-pid" class="form-control font-mono" maxlength="4" placeholder="1B20">
+                </div>
+                <div class="form-group">
+                  <label for="custom-serial">Serial Number</label>
+                  <input type="text" id="custom-serial" class="form-control font-mono" placeholder="SN-8841-A">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="custom-interface">Interface Type</label>
+                  <select id="custom-interface" class="form-select">
+                    <option value="Keyboard">Keyboard</option>
+                    <option value="Mouse">Mouse</option>
+                    <option value="HID">Generic HID</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="custom-conn">Connection Type</label>
+                  <select id="custom-conn" class="form-select">
+                    <option value="USB">USB Cable</option>
+                    <option value="USB Receiver">Wireless USB Receiver</option>
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary" id="btn-simulate-custom">
+                ⚡ Simulate Plug-In
+              </button>
+            </form>
+          </div>
+
+          <div class="simulator-right">
+            <h3>Active Virtual Peripherals</h3>
+            <p class="text-muted">Simulated devices currently plugged into the system.</p>
+            <div id="active-sims-list" class="active-sims-list">
+              <div class="empty-state">
+                <p>No simulated peripherals currently attached.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal 1: Explicit Authentication Prompt (PRD FR-04) -->
+    <div class="modal-backdrop" id="auth-modal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon">⚠️</span>
+            <h3>Device Approval Required</h3>
+          </div>
+          <button class="modal-close" onclick="closeAuthModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-lead" id="modal-prompt-text">
+            This device has not been registered. Do you want to approve it?
+          </p>
+
+          <div class="device-spec-box">
+            <div class="spec-row">
+              <span class="spec-label">Device Name:</span>
+              <span class="spec-val" id="modal-dev-name">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Manufacturer:</span>
+              <span class="spec-val" id="modal-dev-mfg">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Vendor ID (VID):</span>
+              <span class="spec-val font-mono" id="modal-dev-vid">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Product ID (PID):</span>
+              <span class="spec-val font-mono" id="modal-dev-pid">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Serial Number:</span>
+              <span class="spec-val font-mono" id="modal-dev-serial">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Interface Category:</span>
+              <span class="spec-val" id="modal-dev-interface">—</span>
+            </div>
+          </div>
+
+          <div class="notice-box">
+            Approving this device adds it to your trusted-device registry. Rejection records your decision in the history log without trusting the device.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-danger" id="modal-btn-reject">✕ Reject Device</button>
+          <button class="btn btn-success" id="modal-btn-approve">✓ Approve Device</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 2: Confirm Revocation (PRD FR-07) -->
+    <div class="modal-backdrop" id="revoke-modal">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon">⚠️</span>
+            <h3>Revoke Peripheral Trust</h3>
+          </div>
+          <button class="modal-close" onclick="closeRevokeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to revoke trust for this device?</p>
+          <div class="device-spec-box">
+            <div class="spec-row">
+              <span class="spec-label">Device:</span>
+              <span class="spec-val font-bold" id="revoke-dev-name">—</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">VID / PID:</span>
+              <span class="spec-val font-mono" id="revoke-dev-vidpid">—</span>
+            </div>
+          </div>
+          <p class="text-muted text-sm mt-3">
+            If this device is connected again in the future, it will be treated as unregistered and will require explicit approval again.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeRevokeModal()">Cancel</button>
+          <button class="btn btn-danger" id="revoke-btn-confirm">Revoke Trust</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toast-container"></div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+"""HID Authenticator root package."""
