@@ -1,0 +1,15 @@
+{
+  "name": "idp",
+  "mode": "vendored",
+  "dependencies": {
+    "rmyndharis/antigravity-skills": {
+      "version": "3eff4af253b3a15e2ba6edf2c2b743b53fd81211",
+      "source": "https://github.com/rmyndharis/antigravity-skills",
+      "include": {
+        "skills": [
+          "backend-development-feature-development"
+        ]
+      }
+    }
+  }
+}
