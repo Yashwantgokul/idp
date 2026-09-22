@@ -18,16 +18,15 @@
   --border-active: rgba(255, 255, 255, 0.14);
   --border-focus: #3b82f6;
 
-  /* Typography Colors */
+  /* Typography Colors — WCAG AA Compliant (All > 5.5:1 against dark surfaces) */
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-faint: #475569;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-faint: #8da0b6;
 
   /* Accent & Semantic */
   --brand-blue: #3b82f6;
   --brand-blue-hover: #2563eb;
-  --brand-glow: 0 0 20px -3px rgba(59, 130, 246, 0.35);
 
   --emerald: #10b981;
   --emerald-subtle: rgba(16, 185, 129, 0.12);
@@ -45,9 +44,9 @@
   --purple-subtle: rgba(168, 85, 247, 0.12);
   --purple-border: rgba(168, 85, 247, 0.25);
 
-  /* Fonts */
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Distinctive Systems Fonts */
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
 
   /* Concentric radii */
   --radius-card: 14px;
@@ -122,13 +121,14 @@ body {
 .brand-mark {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-inner);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
-  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4);
+  color: #38bdf8;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .brand-name {
@@ -165,7 +165,6 @@ body {
 
 .search-trigger:focus-within {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .search-trigger input {
@@ -219,7 +218,6 @@ body {
 
 .live-dot.online {
   background-color: var(--emerald);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
 .host-pill {
@@ -643,8 +641,6 @@ body {
    SaaS Tables
    ========================================================================== */
 .table-container {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-inner);
   overflow-x: auto;
 }
 
@@ -757,7 +753,7 @@ body {
 .btn-primary {
   background: #2563eb;
   color: #ffffff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 8px rgba(37, 99, 235, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .btn-primary:hover {
@@ -825,7 +821,6 @@ body {
 .saas-input:focus, .saas-select:focus {
   outline: none;
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .saas-select-compact {
@@ -852,7 +847,8 @@ body {
   }
 }
 
-.sim-section-header h4 {
+.sim-section-header h3,
+.sim-section-title {
   font-size: 0.9375rem;
   font-weight: 600;
   color: #ffffff;
@@ -1171,10 +1167,10 @@ body {
   max-width: 400px;
 }
 
-.toast-success { border-left: 3px solid var(--emerald); }
-.toast-info { border-left: 3px solid #38bdf8; }
-.toast-warning { border-left: 3px solid var(--amber); }
-.toast-danger { border-left: 3px solid var(--rose); }
+.toast-success { border-color: rgba(16, 185, 129, 0.35); }
+.toast-info { border-color: rgba(56, 189, 248, 0.35); }
+.toast-warning { border-color: rgba(245, 158, 11, 0.35); }
+.toast-danger { border-color: rgba(239, 68, 68, 0.35); }
 
 /* ==========================================================================
    Footer
