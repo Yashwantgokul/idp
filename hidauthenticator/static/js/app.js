@@ -23,42 +23,54 @@ function setQueueFilter(filter) {
 window.setQueueFilter = setQueueFilter;
 
 // DOM Elements
-const wsDot = document.getElementById('ws-dot');
-const wsStatusText = document.getElementById('ws-status-text');
-const platformBadge = document.getElementById('platform-name');
+let wsDot, wsStatusText, platformBadge;
+let countConnected, countPending, countTrusted, countEvents;
+let pendingEmpty, pendingCards, pendingCountBadge;
+let tabCountTrusted, tabCountAll, tabCountHistory;
+let trustedTbody, allDevicesTbody, historyTbody, historyFilter, searchInput;
+let presetContainer, activeSimsList, customSimForm;
+let authModal, revokeModal, popupBannerContainer;
 
-const countConnected = document.getElementById('count-connected');
-const countPending = document.getElementById('count-pending');
-const countTrusted = document.getElementById('count-trusted');
-const countEvents = document.getElementById('count-events');
+function initDomReferences() {
+  wsDot = document.getElementById('ws-dot');
+  wsStatusText = document.getElementById('ws-status-text');
+  platformBadge = document.getElementById('platform-name');
 
-const pendingEmpty = document.getElementById('pending-empty');
-const pendingCards = document.getElementById('pending-cards');
-const pendingCountBadge = document.getElementById('pending-count-badge');
+  countConnected = document.getElementById('count-connected');
+  countPending = document.getElementById('count-pending');
+  countTrusted = document.getElementById('count-trusted');
+  countEvents = document.getElementById('count-events');
 
-const tabCountTrusted = document.getElementById('tab-count-trusted');
-const tabCountAll = document.getElementById('tab-count-all');
-const tabCountHistory = document.getElementById('tab-count-history');
+  pendingEmpty = document.getElementById('pending-empty');
+  pendingCards = document.getElementById('pending-cards');
+  pendingCountBadge = document.getElementById('pending-count-badge');
 
-const trustedTbody = document.getElementById('trusted-tbody');
-const allDevicesTbody = document.getElementById('all-devices-tbody');
-const historyTbody = document.getElementById('history-tbody');
-const historyFilter = document.getElementById('history-filter-type');
-const searchInput = document.getElementById('device-search-input');
+  tabCountTrusted = document.getElementById('tab-count-trusted');
+  tabCountAll = document.getElementById('tab-count-all');
+  tabCountHistory = document.getElementById('tab-count-history');
 
-const presetContainer = document.getElementById('preset-container');
-const activeSimsList = document.getElementById('active-sims-list');
-const customSimForm = document.getElementById('custom-sim-form');
+  trustedTbody = document.getElementById('trusted-tbody');
+  allDevicesTbody = document.getElementById('all-devices-tbody');
+  historyTbody = document.getElementById('history-tbody');
+  historyFilter = document.getElementById('history-filter-type');
+  searchInput = document.getElementById('device-search-input');
 
-// Modals
-const authModal = document.getElementById('auth-modal');
-const revokeModal = document.getElementById('revoke-modal');
+  presetContainer = document.getElementById('preset-container');
+  activeSimsList = document.getElementById('active-sims-list');
+  customSimForm = document.getElementById('custom-sim-form');
+
+  authModal = document.getElementById('auth-modal');
+  revokeModal = document.getElementById('revoke-modal');
+  popupBannerContainer = document.getElementById('device-popup-container');
+}
 
 // Init
 function init() {
+  initDomReferences();
   setupTabs();
   setupEventListeners();
   setupKeyboardShortcuts();
+  setupNotificationPermissions();
   loadSystemStatus();
   refreshAllData();
   initWebSocket();
@@ -68,6 +80,183 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
+}
+
+// -------------------------------------------------------------
+// Browser Desktop Notification & Sound Feedback
+// -------------------------------------------------------------
+function setupNotificationPermissions() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    const requestPerm = () => {
+      Notification.requestPermission();
+      document.removeEventListener('click', requestPerm);
+    };
+    document.addEventListener('click', requestPerm, { once: true });
+  }
+}
+
+function sendDesktopNotification(title, body) {
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const n = new Notification(title, {
+        body: body,
+        tag: 'hidshield-device-alert',
+        silent: false
+      });
+      n.onclick = () => {
+        window.focus();
+        n.close();
+      };
+    }
+  } catch (e) {
+    console.debug('Browser desktop notification skipped:', e);
+  }
+}
+
+function playArrivalChime(type = 'review') {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+
+    if (type === 'review') {
+      // Urgent but pleasant double-ping
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.12); // A5
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.36);
+    } else {
+      // Soft harmonious chord (C5 -> E5)
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12); // E5
+      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.33);
+    }
+  } catch (e) {
+    // Audio is non-blocking enhancement
+  }
+}
+
+// -------------------------------------------------------------
+// On-Screen Device Arrival Popup Banner
+// -------------------------------------------------------------
+function showDeviceArrivalBanner(device, mode = 'review') {
+  const container = document.getElementById('device-popup-container');
+  if (!container || !device) return;
+
+  const bannerId = `arrival-banner-${device.id || Date.now()}`;
+  const existing = document.getElementById(bannerId);
+  if (existing) existing.remove();
+
+  const banner = document.createElement('div');
+  banner.id = bannerId;
+  banner.className = `device-arrival-banner banner-${mode === 'review' ? 'review' : 'trusted'}`;
+
+  const iconSvg = getDeviceSvgIcon(device.interface_type, device.device_name);
+  const vidPid = formatVidPid(device.vendor_id, device.product_id);
+  const topology = device.connection_type || 'USB';
+  const iface = device.interface_type || 'Peripheral';
+  const badgeTitle = mode === 'review' ? 'Peripheral Plugged In &bull; Review Required' : 'Trusted Peripheral Connected';
+
+  banner.innerHTML = `
+    <div class="banner-top-row">
+      <span class="banner-status-badge">
+        <span class="banner-status-dot"></span>
+        <span>${badgeTitle}</span>
+      </span>
+      <button class="banner-close-btn" aria-label="Dismiss banner" onclick="dismissArrivalBanner('${bannerId}')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="banner-body-row">
+      <div class="banner-device-icon">${iconSvg}</div>
+      <div class="banner-device-details">
+        <div class="banner-device-title">${escapeHtml(device.device_name || 'USB HID Peripheral')}</div>
+        <div class="banner-device-meta">
+          <span class="banner-meta-tag">${escapeHtml(iface)}</span>
+          <span class="banner-meta-tag">${vidPid}</span>
+          <span class="banner-meta-tag">${escapeHtml(topology)}</span>
+        </div>
+      </div>
+    </div>
+    <div class="banner-actions">
+      ${mode === 'review' ? `
+        <button class="banner-btn banner-btn-ghost" onclick="openSpecModalFromBanner('${device.id}')">
+          Inspect Specs
+        </button>
+        <button class="banner-btn banner-btn-primary" onclick="approveFromBanner('${device.id}', '${bannerId}')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Authorize Now
+        </button>
+      ` : `
+        <button class="banner-btn banner-btn-ghost" onclick="focusDeviceInRegistry('${device.id}', '${bannerId}')">
+          View in Registry
+        </button>
+        <button class="banner-btn banner-btn-primary" onclick="dismissArrivalBanner('${bannerId}')">
+          Dismiss
+        </button>
+      `}
+    </div>
+    <div class="banner-progress-track">
+      <div class="banner-progress-bar"></div>
+    </div>
+  `;
+
+  container.appendChild(banner);
+
+  const timer = setTimeout(() => {
+    dismissArrivalBanner(bannerId);
+  }, 6500);
+  banner._timer = timer;
+}
+
+function dismissArrivalBanner(bannerId) {
+  const banner = document.getElementById(bannerId);
+  if (!banner) return;
+  if (banner._timer) clearTimeout(banner._timer);
+  banner.classList.add('banner-exit');
+  setTimeout(() => {
+    if (banner.parentNode) banner.remove();
+  }, 200);
+}
+
+function openSpecModalFromBanner(deviceId) {
+  fetch(`/api/devices/${deviceId}`)
+    .then(r => r.json())
+    .then(dev => {
+      promptDeviceApproval(dev, "This peripheral is plugged in. Authorize for this workstation?");
+    })
+    .catch(err => console.error('Failed to open device spec modal:', err));
+}
+
+async function approveFromBanner(deviceId, bannerId) {
+  dismissArrivalBanner(bannerId);
+  await handleApproveDevice(deviceId);
+}
+
+function focusDeviceInRegistry(deviceId, bannerId) {
+  dismissArrivalBanner(bannerId);
+  const tabTrusted = document.querySelector('[data-tab="tab-trusted"]');
+  if (tabTrusted) tabTrusted.click();
 }
 
 // -------------------------------------------------------------
@@ -114,8 +303,26 @@ function handleLiveEvent(data) {
   switch (data.type) {
     case 'auth_requested':
       showToast(`Authorization required: ${data.device.device_name || 'USB HID'}`, 'warning');
+      showDeviceArrivalBanner(data.device, 'review');
+      playArrivalChime('review');
+      sendDesktopNotification(
+        'HIDShield-X: Authorization Required',
+        `New peripheral '${data.device.device_name}' plugged in. Approval required.`
+      );
       refreshAllData();
       promptDeviceApproval(data.device, data.prompt);
+      break;
+
+    case 'device_connected':
+      const isAuth = data.device && data.device.status === 'authenticated';
+      showDeviceArrivalBanner(data.device, isAuth ? 'trusted' : 'review');
+      playArrivalChime(isAuth ? 'trusted' : 'review');
+      sendDesktopNotification(
+        isAuth ? 'HIDShield-X: Device Connected' : 'HIDShield-X: Peripheral Plugged In',
+        `${data.device.device_name} attached (${isAuth ? 'Authorized' : 'Review Required'})`
+      );
+      showToast(`Connected: ${data.device.device_name}`, isAuth ? 'success' : 'info');
+      refreshAllData();
       break;
 
     case 'device_approved':
@@ -130,10 +337,6 @@ function handleLiveEvent(data) {
 
     case 'trust_revoked':
       showToast(`Trust revoked: ${data.device.device_name}`, 'info');
-      refreshAllData();
-      break;
-
-    case 'device_connected':
       refreshAllData();
       break;
 
@@ -858,7 +1061,15 @@ window.copyToClipboard = copyToClipboard;
 window.handleApproveDevice = handleApproveDevice;
 window.handleRejectDevice = handleRejectDevice;
 window.promptRevokeTrust = promptRevokeTrust;
-window.simulateQuickPreset = simulateQuickPreset;
+window.confirmRevokeTrust = confirmRevokeTrust;
+window.simulatePresetPlugIn = simulatePresetPlugIn;
+window.simulateQuickPreset = simulatePresetPlugIn;
 window.simulateUnplug = simulateUnplug;
+window.dismissArrivalBanner = dismissArrivalBanner;
+window.openSpecModalFromBanner = openSpecModalFromBanner;
+window.approveFromBanner = approveFromBanner;
+window.focusDeviceInRegistry = focusDeviceInRegistry;
 window.setQueueFilter = setQueueFilter;
 window.refreshAllData = refreshAllData;
+
+

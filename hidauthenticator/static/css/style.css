@@ -1210,6 +1210,246 @@ body {
 .toast-danger { border-color: rgba(239, 68, 68, 0.35); }
 
 /* ==========================================================================
+   On-Screen Device Arrival Popup Banners
+   ========================================================================== */
+.popup-banner-stack {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  z-index: 250;
+  max-width: 440px;
+  width: calc(100vw - 3rem);
+  pointer-events: none;
+}
+
+.device-arrival-banner {
+  pointer-events: auto;
+  position: relative;
+  background: #131316;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-card);
+  box-shadow: 0 20px 48px -8px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  padding: 1.15rem 1.25rem;
+  overflow: hidden;
+  animation: bannerEnter 220ms var(--ease-fluid) forwards;
+  transition: transform 180ms ease, opacity 180ms ease;
+  backdrop-filter: blur(16px);
+}
+
+.device-arrival-banner.banner-exit {
+  opacity: 0;
+  transform: translateY(-12px) scale(0.96);
+  pointer-events: none;
+}
+
+@keyframes bannerEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.device-arrival-banner.banner-review {
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.device-arrival-banner.banner-trusted {
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.banner-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.banner-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+}
+
+.banner-review .banner-status-badge {
+  background: var(--amber-subtle);
+  color: #fbbf24;
+  border: 1px solid var(--amber-border);
+}
+
+.banner-trusted .banner-status-badge {
+  background: var(--emerald-subtle);
+  color: #34d399;
+  border: 1px solid var(--emerald-border);
+}
+
+.banner-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+
+.banner-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.banner-close-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.banner-body-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin-bottom: 0.95rem;
+}
+
+.banner-device-icon {
+  width: 42px;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-inner);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f4f4f5;
+  flex-shrink: 0;
+}
+
+.banner-device-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-device-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.3;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.banner-device-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.6875rem;
+}
+
+.banner-meta-tag {
+  background: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+.banner-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.banner-btn {
+  font-size: 0.75rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-inner);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1;
+}
+
+.banner-btn:active {
+  transform: scale(0.97);
+}
+
+.banner-btn-primary {
+  background: #f4f4f5;
+  color: #09090b;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.banner-btn-primary:hover {
+  background: #ffffff;
+}
+
+.banner-btn-ghost {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+.banner-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.banner-progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.banner-progress-bar {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  animation: bannerDrain 6.5s linear forwards;
+}
+
+.banner-review .banner-progress-bar {
+  background: var(--amber);
+}
+
+.banner-trusted .banner-progress-bar {
+  background: var(--emerald);
+}
+
+@keyframes bannerDrain {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+
+/* ==========================================================================
    Footer
    ========================================================================== */
 .app-footer {

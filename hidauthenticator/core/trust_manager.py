@@ -18,6 +18,16 @@ from core.models import (
 from core.database import Database, db
 from core.event_manager import EventManager, event_mgr
 
+try:
+    from core.notifier import notify_device_event
+except ImportError:
+    try:
+        from hidauthenticator.core.notifier import notify_device_event
+    except ImportError:
+        def notify_device_event(title: str, body: str) -> None:
+            pass
+
+
 
 class TrustManager:
     def __init__(self, database: Database = db, event_manager: EventManager = event_mgr):
@@ -131,6 +141,10 @@ class TrustManager:
                     "type": "device_connected",
                     "device": updated_rec.model_dump(mode="json")
                 })
+                notify_device_event(
+                    "HIDShield-X: Device Connected",
+                    f"{updated_rec.device_name} attached (Status: Authorized)"
+                )
                 return updated_rec
 
             elif updated_rec.status == DeviceStatus.TRUST_REVOKED:
@@ -152,6 +166,10 @@ class TrustManager:
                     "device": updated_rec.model_dump(mode="json"),
                     "prompt": "This device had its trust revoked previously. Do you want to approve it?"
                 })
+                notify_device_event(
+                    "HIDShield-X: Authorization Required",
+                    f"Revoked peripheral '{updated_rec.device_name}' attached. Approval required."
+                )
                 return updated_rec
 
             elif updated_rec.status == DeviceStatus.PENDING_AUTHENTICATION:
@@ -177,6 +195,10 @@ class TrustManager:
                     "type": "device_connected",
                     "device": updated_rec.model_dump(mode="json")
                 })
+                notify_device_event(
+                    "HIDShield-X: Peripheral Plugged In",
+                    f"Declined device '{updated_rec.device_name}' plugged in (Unauthorized)."
+                )
                 return updated_rec
 
             else:
@@ -194,6 +216,10 @@ class TrustManager:
                     "device": updated_rec.model_dump(mode="json"),
                     "prompt": "This device has not been registered. Do you want to approve it?"
                 })
+                notify_device_event(
+                    "HIDShield-X: Authorization Required",
+                    f"Peripheral '{updated_rec.device_name}' attached. Approval required."
+                )
                 return updated_rec
 
         else:
@@ -244,6 +270,10 @@ class TrustManager:
                 "device": new_rec.model_dump(mode="json"),
                 "prompt": "This device has not been registered. Do you want to approve it?"
             })
+            notify_device_event(
+                "HIDShield-X: Authorization Required",
+                f"New peripheral '{new_rec.device_name}' attached. Approval required."
+            )
             return new_rec
 
     def handle_device_disconnected(self, hardware_id_or_event: Any) -> Optional[DeviceRecord]:
