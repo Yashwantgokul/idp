@@ -1,6 +1,6 @@
 /**
- * HIDShield-X — Peripheral Trust Manager
- * Enterprise SaaS UI Client Architecture
+ * HIDShield-X: Peripheral Trust Manager
+ * Enterprise Frontend Controller & Real-Time Security Monitor
  */
 
 // Application State
@@ -705,7 +705,7 @@ function renderDeviceActionButtons(d, formattedVidPid) {
   } else if (d.status === 'pending_authentication' || d.status === 'trust_revoked' || d.status === 'rejected') {
     return `<button class="btn btn-primary btn-sm" onclick="handleApproveDevice(${d.id})">Authorize</button>`;
   }
-  return '—';
+  return '-';
 }
 
 async function loadHistory() {
@@ -838,7 +838,7 @@ async function handleRejectDevice(deviceId) {
     const res = await fetch(`/api/devices/${deviceId}/reject`, { method: 'POST' });
     if (res.ok) {
       closeAuthModal();
-      showToast('Peripheral declined — input remains blocked', 'danger');
+      showToast('Peripheral declined; input remains blocked', 'danger');
       await refreshAllData();
       await loadEnforcementStatus();
     } else {
@@ -1038,14 +1038,14 @@ function showToast(message, type = 'info') {
 }
 
 function copyToClipboard(text, label) {
-  if (!text || text === '—') return;
+  if (!text || text === '—' || text === '-') return;
   navigator.clipboard.writeText(text).then(() => {
     showToast(`Copied ${label}: ${text}`, 'info');
   });
 }
 
 function formatVidPid(vid, pid) {
-  if (!vid && !pid) return '—';
+  if (!vid && !pid) return '-';
   const v = vid ? (vid.startsWith('0x') ? vid : `0x${vid.toUpperCase()}`) : '0x????';
   const p = pid ? (pid.startsWith('0x') ? pid : `0x${pid.toUpperCase()}`) : '0x????';
   return `${v}:${p}`;
@@ -1116,7 +1116,7 @@ function renderEventBadge(type) {
 }
 
 function formatDate(isoStr) {
-  if (!isoStr) return '—';
+  if (!isoStr) return '-';
   try {
     const d = new Date(isoStr);
     return d.toLocaleString(undefined, {
@@ -1375,7 +1375,7 @@ function setupSandboxTesters() {
 
     sandboxMousePad.addEventListener('mouseleave', () => {
       if (mouseCrosshair) mouseCrosshair.style.display = 'none';
-      if (mouseCoords) mouseCoords.textContent = 'Position: X: — Y: —';
+      if (mouseCoords) mouseCoords.textContent = 'Position: X: - Y: -';
     });
   }
 }

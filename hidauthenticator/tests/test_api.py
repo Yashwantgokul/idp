@@ -18,6 +18,7 @@ class TestAPI(unittest.TestCase):
     def setUp(self):
         # Clean test state if needed
         db.init_db()
+        db.set_system_mode("mock")
 
     def test_system_status(self):
         """Verify system status endpoint reports platform and disclaimer."""

@@ -137,7 +137,7 @@ body {
 }
 
 .brand-tag {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   font-weight: 500;
 }
@@ -180,7 +180,7 @@ body {
 
 .key-hint {
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   background: var(--surface-raised);
   border: 1px solid var(--border-subtle);
   padding: 0.1rem 0.35rem;
@@ -295,7 +295,7 @@ body {
 }
 
 .metric-badge {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   padding: 0.125rem 0.45rem;
   border-radius: var(--radius-pill);
   background: var(--surface-raised);
@@ -508,7 +508,7 @@ body {
 }
 
 .spec-k {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-faint);
@@ -626,7 +626,7 @@ body {
 }
 
 .segment-count {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   background: rgba(255, 255, 255, 0.08);
   padding: 0.1rem 0.45rem;
   border-radius: var(--radius-pill);
@@ -688,7 +688,7 @@ body {
   color: var(--text-muted);
   padding: 0.7rem 1rem;
   font-weight: 600;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-bottom: 1px solid var(--border-subtle);
@@ -722,7 +722,7 @@ body {
   gap: 0.4rem;
   padding: 0.2rem 0.55rem;
   border-radius: var(--radius-pill);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -774,7 +774,7 @@ body {
 }
 
 .btn:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
 .btn-sm {
@@ -899,7 +899,7 @@ body {
 }
 
 .presets-label {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-faint);
@@ -936,7 +936,7 @@ body {
 }
 
 .preset-desc {
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   color: var(--text-muted);
   font-family: var(--font-mono);
   margin-top: 0.1rem;
@@ -948,7 +948,7 @@ body {
   text-align: center;
   margin: 1.5rem 0 1.25rem;
   color: var(--text-faint);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -988,7 +988,7 @@ body {
 }
 
 .form-field label {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
@@ -1275,7 +1275,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1362,7 +1362,7 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 .banner-meta-tag {
@@ -1395,7 +1395,7 @@ body {
 }
 
 .banner-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
 .banner-btn-primary {
@@ -1455,8 +1455,8 @@ body {
 .app-footer {
   border-top: 1px solid var(--border-subtle);
   background: var(--surface);
-  padding: 1rem 2rem;
-  font-size: 0.6875rem;
+  padding: 1.25rem 2rem;
+  font-size: 0.875rem;
   color: var(--text-faint);
 }
 
@@ -1510,7 +1510,7 @@ body {
 }
 
 .mode-toggle-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
 .mode-toggle-btn.active {
@@ -1533,7 +1533,6 @@ body {
 
 #btn-mode-real.active .mode-btn-dot {
   background: var(--emerald);
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
 }
 
 /* Enforcement Indicator Pill */
@@ -1543,11 +1542,11 @@ body {
   gap: 6px;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  transition: all var(--duration-fast) var(--ease-smooth);
+  transition: background-color var(--duration-fast) var(--ease-smooth), border-color var(--duration-fast) var(--ease-smooth), color var(--duration-fast) var(--ease-smooth);
 }
 
 .enforcement-indicator-pill.pill-unlocked {
@@ -1620,7 +1619,7 @@ body {
   gap: 6px;
   padding: 3px 8px;
   border-radius: var(--radius-pill);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1674,34 +1673,55 @@ body {
 .sandbox-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
-  margin-top: 1rem;
+  gap: 2rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-subtle);
 }
 
 @media (max-width: 900px) {
   .sandbox-grid {
     grid-template-columns: 1fr;
+    gap: 1.75rem;
   }
 }
 
+.sandbox-panel,
 .sandbox-card {
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card);
-  padding: 1.25rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  box-shadow: var(--shadow-card);
-  transition: all var(--duration-fast) var(--ease-smooth);
+  box-shadow: none;
 }
 
+.sandbox-panel:first-child,
+.sandbox-card:first-child {
+  padding-right: 2rem;
+  border-right: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 900px) {
+  .sandbox-panel:first-child,
+  .sandbox-card:first-child {
+    padding-right: 0;
+    padding-bottom: 1.75rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+}
+
+.sandbox-panel-header,
 .sandbox-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
+.sandbox-panel-title,
 .sandbox-card-title {
   display: flex;
   align-items: center;
@@ -1712,7 +1732,7 @@ body {
 }
 
 .sandbox-state-badge {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
@@ -1793,7 +1813,7 @@ body {
 }
 
 .lock-shield-sub {
-  font-size: 0.6875rem;
+  font-size: 0.875rem;
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -1806,7 +1826,7 @@ body {
   min-height: 70px;
   max-height: 100px;
   overflow-y: auto;
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -1865,7 +1885,7 @@ body {
   gap: 6px;
   padding: 3px 10px;
   border-radius: var(--radius-pill);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   background: var(--surface-muted);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);

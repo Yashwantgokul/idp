@@ -228,10 +228,10 @@
         </div>
 
         <div class="sandbox-grid">
-          <!-- Keystroke Authenticator Box -->
-          <div class="sandbox-card" id="card-keyboard-test">
-            <div class="sandbox-card-header">
-              <div class="sandbox-card-title">
+          <!-- Keystroke Authenticator Panel -->
+          <div class="sandbox-panel" id="panel-keyboard-test">
+            <div class="sandbox-panel-header">
+              <div class="sandbox-panel-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                   <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"></path>
@@ -240,7 +240,7 @@
               </div>
               <span class="sandbox-state-badge badge-unlocked" id="keyboard-state-badge">UNLOCKED</span>
             </div>
-            <div class="sandbox-card-body">
+            <div class="sandbox-panel-body">
               <div class="sandbox-input-wrap">
                 <input type="text" id="sandbox-keystroke-input" class="sandbox-test-input font-mono" placeholder="Type here to test keyboard input recognition..." autocomplete="off">
                 <div class="keystroke-lock-overlay" id="keystroke-lock-overlay">
@@ -260,10 +260,10 @@
             </div>
           </div>
 
-          <!-- Pointer / Cursor Authenticator Box -->
-          <div class="sandbox-card" id="card-mouse-test">
-            <div class="sandbox-card-header">
-              <div class="sandbox-card-title">
+          <!-- Pointer / Cursor Authenticator Panel -->
+          <div class="sandbox-panel" id="panel-mouse-test">
+            <div class="sandbox-panel-header">
+              <div class="sandbox-panel-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="5" y="2" width="14" height="20" rx="7"></rect>
                   <path d="M12 6v4"></path>
@@ -272,11 +272,11 @@
               </div>
               <span class="sandbox-state-badge badge-unlocked" id="mouse-state-badge">UNLOCKED</span>
             </div>
-            <div class="sandbox-card-body">
+            <div class="sandbox-panel-body">
               <div class="mouse-pad-target" id="sandbox-mouse-pad">
                 <div class="mouse-pad-crosshair" id="mouse-crosshair"></div>
                 <div class="mouse-pad-info">
-                  <div class="font-mono text-xs" id="mouse-coords">Position: X: — Y: —</div>
+                  <div class="font-mono text-xs" id="mouse-coords">Position: X: - Y: -</div>
                   <div class="text-xs text-muted" id="mouse-status-hint">Move pointer inside this target area to test cursor tracking</div>
                 </div>
                 <div class="mouse-lock-overlay" id="mouse-lock-overlay">
@@ -567,27 +567,27 @@
           <div class="spec-table-box">
             <div class="spec-table-row">
               <span class="spec-label">Reported Name</span>
-              <span class="spec-val" id="modal-dev-name">—</span>
+              <span class="spec-val" id="modal-dev-name">-</span>
             </div>
             <div class="spec-table-row">
               <span class="spec-label">Manufacturer</span>
-              <span class="spec-val" id="modal-dev-mfg">—</span>
+              <span class="spec-val" id="modal-dev-mfg">-</span>
             </div>
             <div class="spec-table-row">
               <span class="spec-label">Hardware Identifier</span>
-              <span class="spec-val font-mono" id="modal-dev-vidpid">—</span>
+              <span class="spec-val font-mono" id="modal-dev-vidpid">-</span>
             </div>
             <div class="spec-table-row">
               <span class="spec-label">Serial Number</span>
-              <span class="spec-val font-mono" id="modal-dev-serial">—</span>
+              <span class="spec-val font-mono" id="modal-dev-serial">-</span>
             </div>
             <div class="spec-table-row">
               <span class="spec-label">Interface Category</span>
-              <span class="spec-val" id="modal-dev-interface">—</span>
+              <span class="spec-val" id="modal-dev-interface">-</span>
             </div>
             <div class="spec-table-row">
               <span class="spec-label">Origin Source</span>
-              <span class="spec-val font-mono" id="modal-dev-source">—</span>
+              <span class="spec-val font-mono" id="modal-dev-source">-</span>
             </div>
           </div>
 
@@ -632,11 +632,11 @@
           <div class="spec-table-box">
             <div class="spec-table-row">
               <span class="spec-label">Device Name</span>
-              <span class="spec-val font-bold" id="revoke-dev-name">—</span>
+              <span class="spec-val font-bold" id="revoke-dev-name">-</span>
             </div>
             <div class="spec-table-row">
               <span class="spec-label">Hardware ID</span>
-              <span class="spec-val font-mono" id="revoke-dev-vidpid">—</span>
+              <span class="spec-val font-mono" id="revoke-dev-vidpid">-</span>
             </div>
           </div>
 
