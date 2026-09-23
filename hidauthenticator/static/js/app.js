@@ -197,80 +197,15 @@ function playArrivalChime(type = 'review') {
 
 // -------------------------------------------------------------
 // On-Screen Device Arrival Popup Banner
+// (Only used for review-required devices now; trusted reconnections get a subtle toast only)
 // -------------------------------------------------------------
+let pendingApprovalQueue = [];
+let isShowingApprovalModal = false;
+
 function showDeviceArrivalBanner(device, mode = 'review') {
-  const container = document.getElementById('device-popup-container');
-  if (!container || !device) return;
-
-  const bannerId = `arrival-banner-${device.id || Date.now()}`;
-  const existing = document.getElementById(bannerId);
-  if (existing) existing.remove();
-
-  const banner = document.createElement('div');
-  banner.id = bannerId;
-  banner.className = `device-arrival-banner banner-${mode === 'review' ? 'review' : 'trusted'}`;
-
-  const iconSvg = getDeviceSvgIcon(device.interface_type, device.device_name);
-  const vidPid = formatVidPid(device.vendor_id, device.product_id);
-  const topology = device.connection_type || 'USB';
-  const iface = device.interface_type || 'Peripheral';
-  const badgeTitle = mode === 'review' ? 'Peripheral Plugged In &bull; Review Required' : 'Trusted Peripheral Connected';
-
-  banner.innerHTML = `
-    <div class="banner-top-row">
-      <span class="banner-status-badge">
-        <span class="banner-status-dot"></span>
-        <span>${badgeTitle}</span>
-      </span>
-      <button class="banner-close-btn" aria-label="Dismiss banner" onclick="dismissArrivalBanner('${bannerId}')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </div>
-    <div class="banner-body-row">
-      <div class="banner-device-icon">${iconSvg}</div>
-      <div class="banner-device-details">
-        <div class="banner-device-title">${escapeHtml(device.device_name || 'USB HID Peripheral')}</div>
-        <div class="banner-device-meta">
-          <span class="banner-meta-tag">${escapeHtml(iface)}</span>
-          <span class="banner-meta-tag">${vidPid}</span>
-          <span class="banner-meta-tag">${escapeHtml(topology)}</span>
-        </div>
-      </div>
-    </div>
-    <div class="banner-actions">
-      ${mode === 'review' ? `
-        <button class="banner-btn banner-btn-ghost" onclick="openSpecModalFromBanner('${device.id}')">
-          Inspect Specs
-        </button>
-        <button class="banner-btn banner-btn-primary" onclick="approveFromBanner('${device.id}', '${bannerId}')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          Authorize Now
-        </button>
-      ` : `
-        <button class="banner-btn banner-btn-ghost" onclick="focusDeviceInRegistry('${device.id}', '${bannerId}')">
-          View in Registry
-        </button>
-        <button class="banner-btn banner-btn-primary" onclick="dismissArrivalBanner('${bannerId}')">
-          Dismiss
-        </button>
-      `}
-    </div>
-    <div class="banner-progress-track">
-      <div class="banner-progress-bar"></div>
-    </div>
-  `;
-
-  container.appendChild(banner);
-
-  const timer = setTimeout(() => {
-    dismissArrivalBanner(bannerId);
-  }, 6500);
-  banner._timer = timer;
+  // Completely removed: no more stacking banner popups.
+  // Pending devices go through the auth modal queue.
+  // Trusted reconnections get a single toast (handled in handleLiveEvent).
 }
 
 function dismissArrivalBanner(bannerId) {
@@ -301,6 +236,30 @@ function focusDeviceInRegistry(deviceId, bannerId) {
   dismissArrivalBanner(bannerId);
   const tabTrusted = document.querySelector('[data-tab="tab-trusted"]');
   if (tabTrusted) tabTrusted.click();
+}
+
+/**
+ * Queue a device for approval. Shows the auth modal for the first device,
+ * and queues subsequent ones. When the user approves/declines, the next
+ * device in the queue is shown automatically.
+ */
+function queueDeviceForApproval(device, promptText) {
+  // Don't add duplicates
+  if (pendingApprovalQueue.some(d => d.id === device.id)) return;
+  if (currentPendingDeviceId === device.id) return;
+
+  pendingApprovalQueue.push({ device, promptText });
+  showNextPendingDevice();
+}
+
+function showNextPendingDevice() {
+  if (isShowingApprovalModal) return;
+  if (pendingApprovalQueue.length === 0) return;
+
+  const { device, promptText } = pendingApprovalQueue.shift();
+  isShowingApprovalModal = true;
+  playArrivalChime('review');
+  promptDeviceApproval(device, promptText);
 }
 
 // -------------------------------------------------------------
@@ -347,7 +306,7 @@ function handleLiveEvent(data) {
   switch (data.type) {
     case 'system_mode_changed':
       applySystemModeUi(data.mode);
-      showToast(`Mode switched to ${data.mode === 'real' ? 'Real Hardware' : 'Mock Simulation'}`, 'info');
+      showToast(`Mode: ${data.mode === 'real' ? 'Real Hardware' : 'Mock Simulation'}`, 'info');
       refreshAllData();
       loadEnforcementStatus();
       break;
@@ -359,30 +318,30 @@ function handleLiveEvent(data) {
       break;
 
     case 'auth_requested':
-      showToast(`Authorization required: ${data.device.device_name || 'USB HID'}`, 'warning');
-      showDeviceArrivalBanner(data.device, 'review');
-      playArrivalChime('review');
+      // Only the auth modal, queued. No toast spam, no banner, no chime until modal shows.
       sendDesktopNotification(
-        'HIDShield-X: Authorization Required',
-        `New peripheral '${data.device.device_name}' plugged in. Approval required.`
+        'HIDShield-X: New Peripheral',
+        `'${data.device.device_name || 'USB Device'}' needs authorization.`
+      );
+      queueDeviceForApproval(
+        data.device,
+        data.prompt || "Untrusted peripheral detected. Input access is locked until authorized."
       );
       refreshAllData();
       loadEnforcementStatus();
-      promptDeviceApproval(data.device, data.prompt);
       break;
 
-    case 'device_connected':
+    case 'device_connected': {
       const isAuth = data.device && data.device.status === 'authenticated';
-      showDeviceArrivalBanner(data.device, isAuth ? 'trusted' : 'review');
-      playArrivalChime(isAuth ? 'trusted' : 'review');
-      sendDesktopNotification(
-        isAuth ? 'HIDShield-X: Device Connected' : 'HIDShield-X: Peripheral Plugged In',
-        `${data.device.device_name} attached (${isAuth ? 'Authorized' : 'Review Required'})`
-      );
-      showToast(`Connected: ${data.device.device_name}`, isAuth ? 'success' : 'info');
+      if (isAuth) {
+        // Already trusted: single subtle toast, no modal, no banner
+        showToast(`Reconnected: ${data.device.device_name}`, 'success');
+      }
+      // If not authenticated, the 'auth_requested' event handles the modal
       refreshAllData();
       loadEnforcementStatus();
       break;
+    }
 
     case 'device_approved':
       showToast(`Authorized: ${data.device.device_name}`, 'success');
@@ -473,7 +432,9 @@ async function loadStats() {
 
 async function loadPendingDevices() {
   try {
-    const res = await fetch(`/api/devices?status=pending_authentication&source=${encodeURIComponent(currentSystemMode)}`);
+    // Always show ALL pending devices regardless of mode.
+    // A real USB device plugged in should always prompt, even in mock mode.
+    const res = await fetch(`/api/devices?status=pending_authentication&source=all`);
     if (res.ok) {
       let devices = await res.json();
       pendingCountBadge.textContent = devices.length;
@@ -814,6 +775,9 @@ function promptDeviceApproval(device, promptText) {
 function closeAuthModal() {
   authModal.classList.remove('show');
   currentPendingDeviceId = null;
+  isShowingApprovalModal = false;
+  // Show next queued device after a brief delay for animation
+  setTimeout(() => showNextPendingDevice(), 250);
 }
 
 async function handleApproveDevice(deviceId) {
@@ -1023,11 +987,24 @@ function setupKeyboardShortcuts() {
 
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
+
+  // Prevent duplicate toasts with identical text
+  const existing = container.querySelectorAll('.toast');
+  for (const t of existing) {
+    if (t.textContent === message) return;
+  }
+
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   toast.textContent = message;
 
   container.appendChild(toast);
+
+  // Cap at 3 visible toasts: remove the oldest
+  const allToasts = container.querySelectorAll('.toast');
+  if (allToasts.length > 3) {
+    allToasts[0].remove();
+  }
 
   setTimeout(() => {
     toast.style.opacity = '0';

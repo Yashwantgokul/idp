@@ -64,6 +64,26 @@ class WindowsDeviceAdapter(BaseDeviceAdapter):
         self.detection_available = True
         self.error_message: Optional[str] = None
 
+    def disable_device(self, hardware_id: str):
+        """Disable a device at the OS level using PowerShell."""
+        import subprocess
+        try:
+            cmd = ["powershell", "-Command", f"Disable-PnpDevice -InstanceId '{hardware_id}' -Confirm:$false"]
+            subprocess.run(cmd, check=True, capture_output=True)
+            print(f"Successfully disabled device: {hardware_id}")
+        except Exception as e:
+            print(f"Failed to disable device {hardware_id}: {e}")
+
+    def enable_device(self, hardware_id: str):
+        """Enable a device at the OS level using PowerShell."""
+        import subprocess
+        try:
+            cmd = ["powershell", "-Command", f"Enable-PnpDevice -InstanceId '{hardware_id}' -Confirm:$false"]
+            subprocess.run(cmd, check=True, capture_output=True)
+            print(f"Successfully enabled device: {hardware_id}")
+        except Exception as e:
+            print(f"Failed to enable device {hardware_id}: {e}")
+
     def _query_wmi_devices(self) -> Dict[str, CommonDeviceEvent]:
         """Query WMI for currently connected HID, Keyboard, and Mouse devices."""
         import pythoncom
@@ -78,8 +98,7 @@ class WindowsDeviceAdapter(BaseDeviceAdapter):
             pnp_devices = wmi.ExecQuery(
                 "SELECT DeviceID, Name, Manufacturer, Description, PNPClass, Status "
                 "FROM Win32_PnPEntity "
-                "WHERE (PNPClass = 'HIDClass' OR PNPClass = 'Keyboard' OR PNPClass = 'Mouse') "
-                "AND Status = 'OK'"
+                "WHERE (PNPClass = 'HIDClass' OR PNPClass = 'Keyboard' OR PNPClass = 'Mouse')"
             )
 
             for dev in pnp_devices:

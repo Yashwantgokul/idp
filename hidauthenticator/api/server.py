@@ -39,8 +39,30 @@ async def lifespan(app: FastAPI):
 
     # Determine and initialize platform adapter
     if sys.platform == "win32":
+        import ctypes
+        is_admin = False
+        try:
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except Exception:
+            pass
+
+        if not is_admin:
+            print("\n" + "!" * 80)
+            print("WARNING: HID Authenticator is NOT running as Administrator.")
+            print("OS-level physical hardware blocking (disabling USB devices) will fail.")
+            print("To enable full hardware blocking, please restart this terminal as Administrator.")
+            print("!" * 80 + "\n")
+
         from adapters.windows_adapter import WindowsDeviceAdapter
         active_adapter = WindowsDeviceAdapter()
+        
+        # Wire up OS-level enforcement callbacks if adapter supports it
+        if hasattr(active_adapter, "disable_device") and hasattr(active_adapter, "enable_device"):
+            trust_mgr.set_hardware_control_callbacks(
+                active_adapter.disable_device,
+                active_adapter.enable_device
+            )
+            
     elif sys.platform.startswith("linux"):
         from adapters.linux_adapter import LinuxDeviceAdapter
         active_adapter = LinuxDeviceAdapter()
@@ -51,14 +73,13 @@ async def lifespan(app: FastAPI):
     if active_adapter:
         def on_connected(event):
             event.source = "real"
-            mode = db.get_system_mode("mock")
-            if mode == "real":
-                trust_mgr.handle_device_connected(event)
+            # Always process real hardware connections regardless of mode.
+            # When a physical USB device is plugged in, the user should
+            # always see the auth prompt (the whole point of the app).
+            trust_mgr.handle_device_connected(event)
 
         def on_disconnected(hw_id):
-            mode = db.get_system_mode("mock")
-            if mode == "real":
-                trust_mgr.handle_device_disconnected(hw_id)
+            trust_mgr.handle_device_disconnected(hw_id)
 
         try:
             active_adapter.start_monitoring(on_connected, on_disconnected)

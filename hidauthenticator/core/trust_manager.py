@@ -34,6 +34,13 @@ class TrustManager:
     def __init__(self, database: Database = db, event_manager: EventManager = event_mgr):
         self.db = database
         self.event_mgr = event_manager
+        self.hardware_disable_cb = None
+        self.hardware_enable_cb = None
+
+    def set_hardware_control_callbacks(self, disable_cb, enable_cb):
+        """Set callbacks for OS-level hardware blocking and unblocking."""
+        self.hardware_disable_cb = disable_cb
+        self.hardware_enable_cb = enable_cb
 
     def match_device(self, new_device: CommonDeviceEvent) -> Tuple[Optional[DeviceRecord], str]:
         """
@@ -106,6 +113,18 @@ class TrustManager:
         # No confident match found
         return None, "no_match"
 
+    def _enforce_hardware(self, device: DeviceRecord):
+        """Invoke OS-level hardware enforcement if callbacks are configured."""
+        if not device.hardware_id or device.source != "real":
+            return
+            
+        if device.status == DeviceStatus.AUTHENTICATED:
+            if self.hardware_enable_cb:
+                self.hardware_enable_cb(device.hardware_id)
+        else:
+            if self.hardware_disable_cb:
+                self.hardware_disable_cb(device.hardware_id)
+
     def handle_device_connected(self, event: CommonDeviceEvent) -> DeviceRecord:
         """
         Process a device connection event per PRD Section 5.1 & 5.2.
@@ -147,6 +166,7 @@ class TrustManager:
                     "HIDShield-X: Device Connected",
                     f"{updated_rec.device_name} attached (Status: Authorized)"
                 )
+                self._enforce_hardware(updated_rec)
                 return updated_rec
 
             elif updated_rec.status == DeviceStatus.TRUST_REVOKED:
@@ -172,6 +192,7 @@ class TrustManager:
                     "HIDShield-X: Authorization Required",
                     f"Revoked peripheral '{updated_rec.device_name}' attached. Approval required."
                 )
+                self._enforce_hardware(updated_rec)
                 return updated_rec
 
             elif updated_rec.status == DeviceStatus.PENDING_AUTHENTICATION:
@@ -180,6 +201,7 @@ class TrustManager:
                     "type": "device_connected",
                     "device": updated_rec.model_dump(mode="json")
                 })
+                self._enforce_hardware(updated_rec)
                 return updated_rec
 
             elif updated_rec.status == DeviceStatus.REJECTED:
@@ -201,6 +223,7 @@ class TrustManager:
                     "HIDShield-X: Peripheral Plugged In",
                     f"Declined device '{updated_rec.device_name}' plugged in (Unauthorized)."
                 )
+                self._enforce_hardware(updated_rec)
                 return updated_rec
 
             else:
@@ -223,6 +246,7 @@ class TrustManager:
                     f"Peripheral '{updated_rec.device_name}' attached. Approval required."
                 )
                 enforcement_mgr.sync_and_broadcast()
+                self._enforce_hardware(updated_rec)
                 return updated_rec
 
         else:
@@ -281,6 +305,7 @@ class TrustManager:
                 f"New peripheral '{new_rec.device_name}' attached. Approval required."
             )
             enforcement_mgr.sync_and_broadcast()
+            self._enforce_hardware(new_rec)
             return new_rec
 
     def handle_device_disconnected(self, hardware_id_or_event: Any) -> Optional[DeviceRecord]:
@@ -347,6 +372,7 @@ class TrustManager:
             "device": updated.model_dump(mode="json")
         })
         enforcement_mgr.sync_and_broadcast()
+        self._enforce_hardware(updated)
         return updated
 
     def reject_device(self, device_id: int) -> Optional[DeviceRecord]:
@@ -378,6 +404,7 @@ class TrustManager:
             "device": updated.model_dump(mode="json")
         })
         enforcement_mgr.sync_and_broadcast()
+        self._enforce_hardware(updated)
         return updated
 
     def revoke_trust(self, device_id: int) -> Optional[DeviceRecord]:
@@ -409,6 +436,7 @@ class TrustManager:
             "device": updated.model_dump(mode="json")
         })
         enforcement_mgr.sync_and_broadcast()
+        self._enforce_hardware(updated)
         return updated
 
     def get_overview_stats(self, source: Optional[str] = None) -> OverviewStats:
