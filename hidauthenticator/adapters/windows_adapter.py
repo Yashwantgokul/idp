@@ -15,9 +15,9 @@ from adapters.base import BaseDeviceAdapter
 from core.models import CommonDeviceEvent
 from core.config import POLL_INTERVAL_SECONDS
 
-# Regex patterns for USB & HID DeviceIDs
-VID_REGEX = re.compile(r"VID_([0-9A-Fa-f]{4})", re.IGNORECASE)
-PID_REGEX = re.compile(r"PID_([0-9A-Fa-f]{4})", re.IGNORECASE)
+# Regex patterns for USB, HID, and Bluetooth DeviceIDs (supporting VID_ and VID& formats)
+VID_REGEX = re.compile(r"VID[_&](?:0002)?([0-9A-Fa-f]{4})", re.IGNORECASE)
+PID_REGEX = re.compile(r"PID[_&]([0-9A-Fa-f]{4})", re.IGNORECASE)
 
 
 def parse_device_id(device_id: str):
@@ -87,10 +87,11 @@ class WindowsDeviceAdapter(BaseDeviceAdapter):
                 if not device_id:
                     continue
 
-                # Filter out root buses or virtual system aggregates if needed
-                # Focus on USB or HID bus devices
-                is_usb_or_hid = "USB" in device_id.upper() or "HID" in device_id.upper()
-                if not is_usb_or_hid:
+                # Filter out root buses or virtual system aggregates
+                # Focus on USB, HID, or Bluetooth bus devices
+                dev_id_upper = device_id.upper()
+                is_supported_bus = any(bus in dev_id_upper for bus in ["USB", "HID", "BTH", "BLUETOOTH"])
+                if not is_supported_bus:
                     continue
 
                 vid, pid, serial = parse_device_id(device_id)
@@ -106,8 +107,17 @@ class WindowsDeviceAdapter(BaseDeviceAdapter):
 
                 name = str(dev.Name or dev.Description or "USB HID Peripheral")
                 mfg = str(dev.Manufacturer or "")
-                if mfg == "(Standard system devices)" or mfg == "(Standard keyboards)" or mfg == "(Standard mice)":
-                    mfg = "Standard USB Device"
+                if mfg in ("(Standard system devices)", "(Standard keyboards)", "(Standard mice)"):
+                    mfg = "Standard Device"
+
+                # Detect connection topology (Direct USB, 2.4GHz Wireless USB Receiver, or Bluetooth)
+                name_upper = name.upper()
+                if "BTH" in dev_id_upper or "BLUETOOTH" in dev_id_upper:
+                    connection_type = "Bluetooth"
+                elif any(w in name_upper for w in ["RECEIVER", "DONGLE", "WIRELESS", "UNIFYING", "BOLT", "NANO"]):
+                    connection_type = "USB Receiver"
+                else:
+                    connection_type = "USB"
 
                 event = CommonDeviceEvent(
                     device_name=name,
@@ -117,7 +127,7 @@ class WindowsDeviceAdapter(BaseDeviceAdapter):
                     manufacturer=mfg if mfg else None,
                     product_string=str(dev.Description or name),
                     interface_type=interface_type,
-                    connection_type="USB",
+                    connection_type=connection_type,
                     detected_at=datetime.now(timezone.utc),
                     hardware_id=device_id
                 )
