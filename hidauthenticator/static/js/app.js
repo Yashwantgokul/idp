@@ -1,5 +1,5 @@
 /**
- * HIDShield-X: Peripheral Trust Manager
+ * SYMPACT: Peripheral Trust Manager
  * Enterprise Frontend Controller & Real-Time Security Monitor
  */
 
@@ -144,7 +144,7 @@ function sendDesktopNotification(title, body) {
     if ('Notification' in window && Notification.permission === 'granted') {
       const n = new Notification(title, {
         body: body,
-        tag: 'hidshield-device-alert',
+        tag: 'SYMPACT-device-alert',
         silent: false
       });
       n.onclick = () => {
@@ -320,7 +320,7 @@ function handleLiveEvent(data) {
     case 'auth_requested':
       // Only the auth modal, queued. No toast spam, no banner, no chime until modal shows.
       sendDesktopNotification(
-        'HIDShield-X: New Peripheral',
+        'SYMPACT: New Peripheral',
         `'${data.device.device_name || 'USB Device'}' needs authorization.`
       );
       queueDeviceForApproval(

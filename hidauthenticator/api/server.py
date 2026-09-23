@@ -1,5 +1,5 @@
 """
-FastAPI Server for HID Authenticator (HIDShield-X MVP).
+FastAPI Server for HID Authenticator (SYMPACT MVP).
 Integrates device detection adapters, database persistence, REST endpoints, and WebSockets.
 """
 
@@ -97,7 +97,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="HID Authenticator",
-    description="Peripheral Trust-Management Application (HIDShield-X MVP)",
+    description="Peripheral Trust-Management Application (SYMPACT MVP)",
     version="1.0.0",
     lifespan=lifespan
 )

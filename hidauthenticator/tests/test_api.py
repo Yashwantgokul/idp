@@ -1,5 +1,5 @@
 """
-API endpoint tests for HID Authenticator (HIDShield-X MVP).
+API endpoint tests for HID Authenticator (SYMPACT MVP).
 """
 
 import unittest

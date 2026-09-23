@@ -1,5 +1,5 @@
 """
-Simulator Device Adapter for HID Authenticator (HIDShield-X MVP).
+Simulator Device Adapter for HID Authenticator (SYMPACT MVP).
 Enables interactive simulation of USB peripheral attachment/removal
 for automated tests, demonstrations, and edge-case validation.
 """

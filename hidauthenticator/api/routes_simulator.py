@@ -1,5 +1,5 @@
 """
-Simulator API Routes for HID Authenticator (HIDShield-X MVP).
+Simulator API Routes for HID Authenticator (SYMPACT MVP).
 Enables testing approval, rejection, and disconnect edge cases without physical hardware.
 """
 

@@ -1,5 +1,5 @@
 """
-Trust Manager for HID Authenticator (HIDShield-X MVP).
+Trust Manager for HID Authenticator (SYMPACT MVP).
 Implements PRD Section 10 Device Matching and Trust Rules,
 and Functional Requirements FR-03, FR-04, FR-05, FR-06, FR-07, FR-10.
 """
@@ -41,6 +41,38 @@ class TrustManager:
         """Set callbacks for OS-level hardware blocking and unblocking."""
         self.hardware_disable_cb = disable_cb
         self.hardware_enable_cb = enable_cb
+
+    def _prompt_thread(self, device_id: int, device_name: str, interface_type: str):
+        import ctypes
+        MB_YESNO = 0x04
+        MB_ICONWARNING = 0x30
+        MB_TOPMOST = 0x40000
+        
+        title = f"SYMPACT Authorization"
+        text = (f"Untrusted peripheral detected:\n\n"
+                f"'{device_name}' ({interface_type})\n\n"
+                f"Do you want to authorize this device for use on this workstation?")
+                
+        result = ctypes.windll.user32.MessageBoxW(0, text, title, MB_YESNO | MB_ICONWARNING | MB_TOPMOST)
+        
+        if result == 6:  # IDYES
+            self.approve_device(device_id)
+        elif result == 7:  # IDNO
+            self.reject_device(device_id)
+
+    def show_native_approval_prompt(self, device: DeviceRecord):
+        """Show a native OS popup for device approval (Windows only)."""
+        import sys
+        import threading
+        if sys.platform != "win32":
+            return
+            
+        thread = threading.Thread(
+            target=self._prompt_thread, 
+            args=(device.id, device.device_name or "USB Peripheral", device.interface_type or "HID"),
+            daemon=True
+        )
+        thread.start()
 
     def match_device(self, new_device: CommonDeviceEvent) -> Tuple[Optional[DeviceRecord], str]:
         """
@@ -163,7 +195,7 @@ class TrustManager:
                     "device": updated_rec.model_dump(mode="json")
                 })
                 notify_device_event(
-                    "HIDShield-X: Device Connected",
+                    "SYMPACT: Device Connected",
                     f"{updated_rec.device_name} attached (Status: Authorized)"
                 )
                 self._enforce_hardware(updated_rec)
@@ -189,9 +221,10 @@ class TrustManager:
                     "prompt": "This device had its trust revoked previously. Do you want to approve it?"
                 })
                 notify_device_event(
-                    "HIDShield-X: Authorization Required",
+                    "SYMPACT: Authorization Required",
                     f"Revoked peripheral '{updated_rec.device_name}' attached. Approval required."
                 )
+                self.show_native_approval_prompt(updated_rec)
                 self._enforce_hardware(updated_rec)
                 return updated_rec
 
@@ -220,7 +253,7 @@ class TrustManager:
                     "device": updated_rec.model_dump(mode="json")
                 })
                 notify_device_event(
-                    "HIDShield-X: Peripheral Plugged In",
+                    "SYMPACT: Peripheral Plugged In",
                     f"Declined device '{updated_rec.device_name}' plugged in (Unauthorized)."
                 )
                 self._enforce_hardware(updated_rec)
@@ -242,9 +275,10 @@ class TrustManager:
                     "prompt": "This device has not been registered. Do you want to approve it?"
                 })
                 notify_device_event(
-                    "HIDShield-X: Authorization Required",
+                    "SYMPACT: Authorization Required",
                     f"Peripheral '{updated_rec.device_name}' attached. Approval required."
                 )
+                self.show_native_approval_prompt(updated_rec)
                 enforcement_mgr.sync_and_broadcast()
                 self._enforce_hardware(updated_rec)
                 return updated_rec
@@ -301,9 +335,10 @@ class TrustManager:
                 "prompt": "This device has not been registered. Do you want to approve it?"
             })
             notify_device_event(
-                "HIDShield-X: Authorization Required",
+                "SYMPACT: Authorization Required",
                 f"New peripheral '{new_rec.device_name}' attached. Approval required."
             )
+            self.show_native_approval_prompt(new_rec)
             enforcement_mgr.sync_and_broadcast()
             self._enforce_hardware(new_rec)
             return new_rec

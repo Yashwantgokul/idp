@@ -1,5 +1,5 @@
 """
-Data models and schemas for HID Authenticator (HIDShield-X MVP).
+Data models and schemas for HID Authenticator (SYMPACT MVP).
 Complies with PRD FR-02, FR-08, FR-10, and Section 8.3.
 """
 

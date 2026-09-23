@@ -1,5 +1,5 @@
 """
-Event Manager for HID Authenticator (HIDShield-X MVP).
+Event Manager for HID Authenticator (SYMPACT MVP).
 Handles logging, querying, and live broadcasting of device lifecycle & authentication events (PRD FR-08).
 """
 

@@ -1,5 +1,5 @@
 """
-Input Enforcement Manager for HID Authenticator (HIDShield-X).
+Input Enforcement Manager for HID Authenticator (SYMPACT).
 Tracks workstation gating state and provides input security enforcement
 for newly detected and unapproved HID peripherals (Keyboard, Mouse, HID).
 """

@@ -1,4 +1,4 @@
-# HID Authenticator (HIDShield-X MVP v1.0)
+# HID Authenticator (SYMPACT MVP v1.0)
 
 **Peripheral Trust-Management Application** for USB Human Interface Devices (HIDs), such as keyboards, mice, and other peripherals.
 

@@ -1,5 +1,5 @@
 """
-macOS Device Adapter Skeleton for HID Authenticator (HIDShield-X MVP).
+macOS Device Adapter Skeleton for HID Authenticator (SYMPACT MVP).
 Prepares for Phase 4 cross-platform support via IOKit / system_profiler.
 """
 

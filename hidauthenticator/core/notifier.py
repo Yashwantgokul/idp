@@ -1,5 +1,5 @@
 """
-Native Windows Desktop Notification Dispatcher for HIDShield-X.
+Native Windows Desktop Notification Dispatcher for SYMPACT.
 Uses Windows Runtime Toast Notifications via PowerShell in a non-blocking background thread.
 """
 

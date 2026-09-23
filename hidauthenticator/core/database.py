@@ -1,5 +1,5 @@
 """
-Database module for HID Authenticator (HIDShield-X MVP).
+Database module for HID Authenticator (SYMPACT MVP).
 Implements SQLite persistent storage conforming to PRD Section 9.
 """
 

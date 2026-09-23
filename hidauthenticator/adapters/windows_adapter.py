@@ -1,5 +1,5 @@
 """
-Windows Device Adapter for HID Authenticator (HIDShield-X MVP).
+Windows Device Adapter for HID Authenticator (SYMPACT MVP).
 Monitors USB Human Interface Devices (keyboards, mice, HID peripherals)
 using Windows WMI / PnP Entity subsystem.
 Complies with PRD FR-01, FR-02, and Section 8.
