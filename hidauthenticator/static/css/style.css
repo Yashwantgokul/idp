@@ -5,29 +5,26 @@
    ========================================================================== */
 
 :root {
-  /* Surface Tokens */
-  --canvas: #050811;
-  --surface: #0a0f1e;
-  --surface-raised: #10182c;
-  --surface-muted: #0d1424;
-  --surface-hover: #152038;
-  --surface-overlay: rgba(10, 15, 30, 0.88);
+  /* Surface Tokens — Pure Neutral Obsidian & Zinc (Zero blue/purple wash) */
+  --canvas: #09090b;            /* Deep obsidian canvas (Zinc 950) */
+  --surface: #111113;           /* Primary surface container */
+  --surface-raised: #18181b;    /* Elevated card surface (Zinc 900) */
+  --surface-muted: #141416;     /* Inset panels, micro-spec boxes */
+  --surface-hover: #222226;     /* Interactive hover state */
+  --surface-overlay: rgba(15, 15, 18, 0.94);
 
   /* Hairlines & Borders */
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-active: rgba(255, 255, 255, 0.14);
-  --border-focus: #3b82f6;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(255, 255, 255, 0.16);
+  --border-focus: #71717a;
 
   /* Typography Colors — WCAG AA Compliant (All > 5.5:1 against dark surfaces) */
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-faint: #8da0b6;
+  --text-primary: #f4f4f5;      /* Zinc 100 — High contrast headings/titles */
+  --text-secondary: #d4d4d8;    /* Zinc 300 — Values & active labels (>12:1) */
+  --text-muted: #a1a1aa;        /* Zinc 400 — Table headers & labels (>7.2:1) */
+  --text-faint: #8e8e96;        /* Sub-captions, timestamps (>5.5:1) */
 
-  /* Accent & Semantic */
-  --brand-blue: #3b82f6;
-  --brand-blue-hover: #2563eb;
-
+  /* Semantic Status Indicators */
   --emerald: #10b981;
   --emerald-subtle: rgba(16, 185, 129, 0.12);
   --emerald-border: rgba(16, 185, 129, 0.25);
@@ -40,9 +37,9 @@
   --rose-subtle: rgba(239, 68, 68, 0.12);
   --rose-border: rgba(239, 68, 68, 0.25);
 
-  --purple: #a855f7;
-  --purple-subtle: rgba(168, 85, 247, 0.12);
-  --purple-border: rgba(168, 85, 247, 0.25);
+  --purple: #94a3b8;
+  --purple-subtle: rgba(148, 163, 184, 0.12);
+  --purple-border: rgba(148, 163, 184, 0.25);
 
   /* Distinctive Systems Fonts */
   --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -121,13 +118,13 @@ body {
 .brand-mark {
   width: 32px;
   height: 32px;
-  background: #1e293b;
+  background: #27272a;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-inner);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #38bdf8;
+  color: #f4f4f5;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
@@ -224,9 +221,9 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
   font-size: 0.75rem;
   padding: 0.3rem 0.65rem;
   border-radius: var(--radius-pill);
@@ -306,9 +303,9 @@ body {
 }
 
 .metric-badge.badge-active {
-  background: rgba(59, 130, 246, 0.1);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
 }
 
 .metric-badge.badge-warn {
@@ -470,7 +467,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #60a5fa;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -533,7 +530,7 @@ body {
 }
 
 .copyable-chip:hover {
-  color: #60a5fa;
+  color: #ffffff;
 }
 
 .device-card-footer {
@@ -637,12 +634,12 @@ body {
 }
 
 .segment-btn.active .segment-count {
-  background: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 .sim-trigger-btn {
-  color: #38bdf8;
+  color: var(--text-secondary);
 }
 
 /* Tab Panels */
@@ -786,13 +783,17 @@ body {
 }
 
 .btn-primary {
-  background: #2563eb;
-  color: #ffffff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 1px 2px rgba(0, 0, 0, 0.3);
+  background: #f4f4f5;
+  color: #09090b;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .btn-primary:hover {
-  background: #1d4ed8;
+  background: #ffffff;
+  color: #000000;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .btn-secondary {
@@ -1082,8 +1083,8 @@ body {
 .modal-header-icon {
   width: 36px;
   height: 36px;
-  background: rgba(59, 130, 246, 0.12);
-  color: #60a5fa;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4f4f5;
   border-radius: var(--radius-inner);
   display: flex;
   align-items: center;
@@ -1204,7 +1205,7 @@ body {
 }
 
 .toast-success { border-color: rgba(16, 185, 129, 0.35); }
-.toast-info { border-color: rgba(56, 189, 248, 0.35); }
+.toast-info { border-color: rgba(255, 255, 255, 0.2); }
 .toast-warning { border-color: rgba(245, 158, 11, 0.35); }
 .toast-danger { border-color: rgba(239, 68, 68, 0.35); }
 
