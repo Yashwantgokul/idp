@@ -21,6 +21,11 @@ from api.routes_events import router as events_router
 from api.routes_simulator import router as simulator_router
 from api.websocket import manager as ws_manager
 
+from core.models import SystemModePayload, SystemModeResponse, EnforcementStatus
+from core.enforcement import enforcement_mgr
+from pydantic import BaseModel
+from fastapi import HTTPException
+
 # Platform adapter reference
 active_adapter = None
 
@@ -45,13 +50,20 @@ async def lifespan(app: FastAPI):
 
     if active_adapter:
         def on_connected(event):
-            trust_mgr.handle_device_connected(event)
+            event.source = "real"
+            mode = db.get_system_mode("mock")
+            if mode == "real":
+                trust_mgr.handle_device_connected(event)
 
         def on_disconnected(hw_id):
-            trust_mgr.handle_device_disconnected(hw_id)
+            mode = db.get_system_mode("mock")
+            if mode == "real":
+                trust_mgr.handle_device_disconnected(hw_id)
 
         try:
             active_adapter.start_monitoring(on_connected, on_disconnected)
+            if db.get_system_mode("mock") == "real" and hasattr(active_adapter, "scan_now"):
+                active_adapter.scan_now()
         except Exception as e:
             print(f"Warning: Could not start hardware adapter: {e}")
 
@@ -98,21 +110,97 @@ async def websocket_endpoint(websocket: WebSocket):
         ws_manager.disconnect(websocket)
 
 
+@app.get("/api/system/mode", response_model=SystemModeResponse)
+def get_system_mode():
+    """Retrieve active operating mode ('mock' or 'real')."""
+    mode = db.get_system_mode("mock")
+    return SystemModeResponse(
+        mode=mode,
+        success=True,
+        message=f"Current system mode is '{mode}'"
+    )
+
+
+@app.post("/api/system/mode", response_model=SystemModeResponse)
+async def set_system_mode(payload: SystemModePayload):
+    """Switch system mode between 'mock' (simulation) and 'real' (live hardware)."""
+    new_mode = payload.mode.lower().strip()
+    if new_mode not in ("mock", "real"):
+        raise HTTPException(status_code=400, detail="Mode must be 'mock' or 'real'")
+
+    db.set_system_mode(new_mode)
+
+    if new_mode == "real":
+        # Immediately query Windows WMI for physical keyboard, mouse, etc.
+        if active_adapter and hasattr(active_adapter, "scan_now"):
+            try:
+                active_adapter.scan_now()
+            except Exception as e:
+                print(f"Hardware scan error: {e}")
+
+    enforcement_mgr.sync_and_broadcast(new_mode)
+
+    await ws_manager.broadcast({
+        "type": "system_mode_changed",
+        "mode": new_mode
+    })
+
+    return SystemModeResponse(
+        mode=new_mode,
+        success=True,
+        message=f"System mode switched to '{new_mode}'."
+    )
+
+
+@app.get("/api/system/enforcement", response_model=EnforcementStatus)
+def get_enforcement_status():
+    """Get current workstation input gating and lockout status."""
+    return enforcement_mgr.get_status()
+
+
+class TestInputPayload(BaseModel):
+    input_type: str = "keystroke"
+    detail: Optional[str] = None
+
+
+@app.post("/api/system/enforcement/test-input")
+def test_input_action(payload: TestInputPayload):
+    """Simulate or verify keystroke/pointer interaction against active gating."""
+    status = enforcement_mgr.get_status()
+    req_type = "Keyboard" if payload.input_type == "keystroke" else "Mouse"
+    is_gated = status.is_locked and (req_type in status.gated_interfaces or not status.gated_interfaces)
+    return {
+        "allowed": not is_gated,
+        "is_gated": is_gated,
+        "input_type": payload.input_type,
+        "pending_count": status.pending_count,
+        "gated_interfaces": status.gated_interfaces,
+        "mode": status.mode
+    }
+
+
 @app.get("/api/system/status")
 def get_system_status():
-    """Retrieve runtime status of the system and device detection."""
+    """Retrieve runtime status of the system, active mode, and input gating."""
     adapter_name = active_adapter.name if active_adapter else "Simulator Only"
     adapter_available = getattr(active_adapter, "detection_available", True) if active_adapter else True
     error_msg = getattr(active_adapter, "error_message", None) if active_adapter else None
+    mode = db.get_system_mode("mock")
+    enforce = enforcement_mgr.get_status()
 
     return {
         "platform": sys.platform,
         "adapter_name": adapter_name,
         "detection_available": adapter_available,
         "error_message": error_msg,
+        "mode": mode,
+        "is_locked": enforce.is_locked,
+        "pending_count": enforce.pending_count,
+        "gated_interfaces": enforce.gated_interfaces,
         "disclaimer": DISCLAIMER_TEXT,
         "version": "1.0.0"
     }
+
 
 
 # Mount static assets

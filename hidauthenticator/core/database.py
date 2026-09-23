@@ -83,9 +83,16 @@ class Database:
                 last_connected_at TEXT NOT NULL,
                 approved_at TEXT,
                 is_connected INTEGER NOT NULL DEFAULT 1,
-                hardware_id TEXT
+                hardware_id TEXT,
+                source TEXT DEFAULT 'real'
             );
             """)
+
+            # Migration for existing databases without source column
+            try:
+                cursor.execute("ALTER TABLE devices ADD COLUMN source TEXT DEFAULT 'real';")
+            except Exception:
+                pass
 
             # Authentication Events Table (Section 9.2)
             cursor.execute("""
@@ -112,6 +119,7 @@ class Database:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_devices_vid_pid ON devices(vendor_id, product_id);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_devices_serial ON devices(serial_number);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_devices_source ON devices(source);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_timestamp ON authentication_events(timestamp);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_device_id ON authentication_events(device_id);")
 
@@ -120,6 +128,7 @@ class Database:
     # -------------------------------------------------------------
 
     def _row_to_device(self, row: sqlite3.Row) -> DeviceRecord:
+        col_names = row.keys()
         return DeviceRecord(
             id=row["id"],
             device_name=row["device_name"],
@@ -135,7 +144,8 @@ class Database:
             last_connected_at=parse_datetime_iso(row["last_connected_at"]) or datetime.now(timezone.utc),
             approved_at=parse_datetime_iso(row["approved_at"]),
             is_connected=bool(row["is_connected"]),
-            hardware_id=row["hardware_id"]
+            hardware_id=row["hardware_id"],
+            source=row["source"] if "source" in col_names and row["source"] else "real"
         )
 
     def insert_device(self, data: Dict[str, Any]) -> DeviceRecord:
@@ -149,8 +159,8 @@ class Database:
             INSERT INTO devices (
                 device_name, vendor_id, product_id, serial_number, manufacturer,
                 product_string, interface_type, connection_type, status,
-                first_detected_at, last_connected_at, approved_at, is_connected, hardware_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                first_detected_at, last_connected_at, approved_at, is_connected, hardware_id, source
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 data.get("device_name"),
                 data.get("vendor_id"),
@@ -165,7 +175,8 @@ class Database:
                 last_connected,
                 approved_at,
                 1 if data.get("is_connected", True) else 0,
-                data.get("hardware_id")
+                data.get("hardware_id"),
+                data.get("source", "real")
             ))
             device_id = cursor.lastrowid
         return self.get_device_by_id(device_id)
@@ -182,7 +193,8 @@ class Database:
     def list_devices(
         self,
         status: Optional[DeviceStatus] = None,
-        is_connected: Optional[bool] = None
+        is_connected: Optional[bool] = None,
+        source: Optional[str] = None
     ) -> List[DeviceRecord]:
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -195,6 +207,9 @@ class Database:
             if is_connected is not None:
                 query += " AND is_connected = ?"
                 params.append(1 if is_connected else 0)
+            if source is not None and source != "all":
+                query += " AND source = ?"
+                params.append(source)
 
             query += " ORDER BY last_connected_at DESC"
             cursor.execute(query, params)
@@ -301,6 +316,7 @@ class Database:
         self,
         device_id: Optional[int] = None,
         event_type: Optional[EventType] = None,
+        source: Optional[str] = None,
         limit: int = 100,
         offset: int = 0
     ) -> List[EventRecord]:
@@ -319,6 +335,9 @@ class Database:
             if event_type is not None:
                 query += " AND e.event_type = ?"
                 params.append(event_type.value)
+            if source is not None and source != "all":
+                query += " AND (d.source = ? OR (d.source IS NULL AND ? = 'real'))"
+                params.extend([source, source])
 
             query += " ORDER BY e.id DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
@@ -326,14 +345,21 @@ class Database:
             cursor.execute(query, params)
             return [self._row_to_event(r) for r in cursor.fetchall()]
 
-    def count_events(self) -> int:
+    def count_events(self, source: Optional[str] = None) -> int:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM authentication_events")
+            if source is not None and source != "all":
+                cursor.execute("""
+                SELECT COUNT(*) FROM authentication_events e
+                LEFT JOIN devices d ON e.device_id = d.id
+                WHERE (d.source = ? OR (d.source IS NULL AND ? = 'real'))
+                """, (source, source))
+            else:
+                cursor.execute("SELECT COUNT(*) FROM authentication_events")
             return cursor.fetchone()[0]
 
     # -------------------------------------------------------------
-    # Application Settings
+    # Application Settings & System Mode
     # -------------------------------------------------------------
 
     def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:
@@ -353,6 +379,18 @@ class Database:
             ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value;
             """, (key, value))
 
+    def get_system_mode(self, default: str = "mock") -> str:
+        """Retrieve current operating mode: 'mock' (simulation) or 'real' (hardware)."""
+        mode = self.get_setting("system_mode", default)
+        return mode if mode in ("mock", "real") else default
+
+    def set_system_mode(self, mode: str):
+        """Set current operating mode: 'mock' or 'real'."""
+        if mode not in ("mock", "real"):
+            raise ValueError("Mode must be 'mock' or 'real'")
+        self.set_setting("system_mode", mode)
+
 
 # Default global instance
 db = Database()
+

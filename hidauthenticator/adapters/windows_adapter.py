@@ -129,7 +129,8 @@ class WindowsDeviceAdapter(BaseDeviceAdapter):
                     interface_type=interface_type,
                     connection_type=connection_type,
                     detected_at=datetime.now(timezone.utc),
-                    hardware_id=device_id
+                    hardware_id=device_id,
+                    source="real"
                 )
                 current_map[device_id] = event
 
@@ -141,7 +142,20 @@ class WindowsDeviceAdapter(BaseDeviceAdapter):
 
         return current_map
 
+    def scan_now(self) -> List[CommonDeviceEvent]:
+        """Synchronously query physical devices and dispatch discovery callbacks immediately."""
+        current_snapshot = self._query_wmi_devices()
+        self._known_devices.update(current_snapshot)
+        if self._on_device_connected:
+            for dev_event in current_snapshot.values():
+                try:
+                    self._on_device_connected(dev_event)
+                except Exception:
+                    pass
+        return list(current_snapshot.values())
+
     def get_connected_devices(self) -> List[CommonDeviceEvent]:
+
         try:
             current_map = self._query_wmi_devices()
             return list(current_map.values())

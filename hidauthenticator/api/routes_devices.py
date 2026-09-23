@@ -15,16 +15,22 @@ router = APIRouter(prefix="/api/devices", tags=["Devices"])
 @router.get("", response_model=List[DeviceRecord])
 def get_devices(
     status: Optional[DeviceStatus] = Query(None, description="Filter by device status"),
-    is_connected: Optional[bool] = Query(None, description="Filter by connection state")
+    is_connected: Optional[bool] = Query(None, description="Filter by connection state"),
+    source: Optional[str] = Query(None, description="Filter by source: 'mock', 'real', or 'all'. Defaults to current system mode.")
 ):
-    """List all registered devices in the database."""
-    return db.list_devices(status=status, is_connected=is_connected)
+    """List all registered devices in the database, scoped to active mode."""
+    target_source = source if source is not None else db.get_system_mode("mock")
+    return db.list_devices(status=status, is_connected=is_connected, source=target_source)
 
 
 @router.get("/stats", response_model=OverviewStats)
-def get_dashboard_stats():
-    """Retrieve aggregate statistics for the dashboard overview."""
-    return trust_mgr.get_overview_stats()
+def get_dashboard_stats(
+    source: Optional[str] = Query(None, description="Filter stats by source. Defaults to current system mode.")
+):
+    """Retrieve aggregate statistics for the dashboard overview, scoped to active mode."""
+    target_source = source if source is not None else db.get_system_mode("mock")
+    return trust_mgr.get_overview_stats(source=target_source)
+
 
 
 @router.get("/{device_id}", response_model=DeviceRecord)

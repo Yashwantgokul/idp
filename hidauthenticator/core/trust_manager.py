@@ -17,6 +17,7 @@ from core.models import (
 )
 from core.database import Database, db
 from core.event_manager import EventManager, event_mgr
+from core.enforcement import enforcement_mgr
 
 try:
     from core.notifier import notify_device_event
@@ -45,7 +46,8 @@ class TrustManager:
         Returns:
             Tuple of (matched_device_record_or_None, match_strength_description)
         """
-        all_devices = self.db.list_devices()
+        dev_source = getattr(new_device, "source", None)
+        all_devices = self.db.list_devices(source=dev_source)
 
         # Rule 1: Match by valid Serial Number if available on both
         if new_device.serial_number and new_device.serial_number.strip():
@@ -220,10 +222,12 @@ class TrustManager:
                     "HIDShield-X: Authorization Required",
                     f"Peripheral '{updated_rec.device_name}' attached. Approval required."
                 )
+                enforcement_mgr.sync_and_broadcast()
                 return updated_rec
 
         else:
             # Section 5.1: First-Time Device Connection
+            dev_source = getattr(event, "source", "real") or "real"
             insert_data = {
                 "device_name": event.device_name or "USB Human Interface Device",
                 "vendor_id": event.vendor_id,
@@ -238,7 +242,8 @@ class TrustManager:
                 "last_connected_at": now,
                 "approved_at": None,
                 "is_connected": True,
-                "hardware_id": event.hardware_id
+                "hardware_id": event.hardware_id,
+                "source": dev_source
             }
             new_rec = self.db.insert_device(insert_data)
 
@@ -251,7 +256,8 @@ class TrustManager:
                     "product_id": event.product_id,
                     "serial_number": event.serial_number,
                     "manufacturer": event.manufacturer,
-                    "interface_type": event.interface_type
+                    "interface_type": event.interface_type,
+                    "source": dev_source
                 },
                 timestamp=now
             )
@@ -274,6 +280,7 @@ class TrustManager:
                 "HIDShield-X: Authorization Required",
                 f"New peripheral '{new_rec.device_name}' attached. Approval required."
             )
+            enforcement_mgr.sync_and_broadcast()
             return new_rec
 
     def handle_device_disconnected(self, hardware_id_or_event: Any) -> Optional[DeviceRecord]:
@@ -306,6 +313,7 @@ class TrustManager:
                 "type": "device_disconnected",
                 "device": updated_rec.model_dump(mode="json")
             })
+            enforcement_mgr.sync_and_broadcast()
             return updated_rec
         return None
 
@@ -338,6 +346,7 @@ class TrustManager:
             "type": "device_approved",
             "device": updated.model_dump(mode="json")
         })
+        enforcement_mgr.sync_and_broadcast()
         return updated
 
     def reject_device(self, device_id: int) -> Optional[DeviceRecord]:
@@ -368,6 +377,7 @@ class TrustManager:
             "type": "device_rejected",
             "device": updated.model_dump(mode="json")
         })
+        enforcement_mgr.sync_and_broadcast()
         return updated
 
     def revoke_trust(self, device_id: int) -> Optional[DeviceRecord]:
@@ -398,17 +408,21 @@ class TrustManager:
             "type": "trust_revoked",
             "device": updated.model_dump(mode="json")
         })
+        enforcement_mgr.sync_and_broadcast()
         return updated
 
-    def get_overview_stats(self) -> OverviewStats:
+    def get_overview_stats(self, source: Optional[str] = None) -> OverviewStats:
         """
-        Compute dashboard metrics per PRD FR-09 Section 1.
+        Compute dashboard metrics per PRD FR-09 Section 1, filtered by mode/source.
         """
-        all_devices = self.db.list_devices()
+        if source is None:
+            source = self.db.get_system_mode("mock")
+
+        all_devices = self.db.list_devices(source=source)
         connected_count = sum(1 for d in all_devices if d.is_connected)
         trusted_count = sum(1 for d in all_devices if d.status == DeviceStatus.AUTHENTICATED)
         pending_count = sum(1 for d in all_devices if d.status == DeviceStatus.PENDING_AUTHENTICATION)
-        total_events = self.event_mgr.get_total_events_count()
+        total_events = self.db.count_events(source=source)
 
         return OverviewStats(
             connected_devices_count=connected_count,
@@ -416,6 +430,7 @@ class TrustManager:
             pending_devices_count=pending_count,
             total_events_count=total_events
         )
+
 
     def _dispatch_async(self, message: Dict[str, Any]):
         """Schedule WebSocket broadcast without blocking synchronous caller."""

@@ -32,12 +32,19 @@ class SimulateDisconnectPayload(BaseModel):
     hardware_id: str
 
 
+from core.database import db
+
 # Wire up simulator events to trust manager
 def _on_sim_connected(evt):
-    trust_mgr.handle_device_connected(evt)
+    evt.source = "mock"
+    mode = db.get_system_mode("mock")
+    if mode == "mock":
+        trust_mgr.handle_device_connected(evt)
 
 def _on_sim_disconnected(hw_id):
-    trust_mgr.handle_device_disconnected(hw_id)
+    mode = db.get_system_mode("mock")
+    if mode == "mock":
+        trust_mgr.handle_device_disconnected(hw_id)
 
 simulator.start_monitoring(_on_sim_connected, _on_sim_disconnected)
 
@@ -83,3 +90,11 @@ def simulate_disconnect(payload: SimulateDisconnectPayload):
         "success": ok,
         "message": f"Simulated disconnection for '{payload.hardware_id}'" if ok else "Device not found in active simulations"
     }
+
+
+@router.post("/clear")
+def clear_all_simulations():
+    """Disconnect and clear all simulated endpoints."""
+    simulator.clear_all()
+    return {"success": True, "message": "All virtual endpoints disconnected."}
+

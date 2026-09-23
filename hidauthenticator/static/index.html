@@ -41,6 +41,26 @@
       </div>
 
       <div class="header-right">
+        <!-- System Mode Segmented Control -->
+        <div class="mode-toggle-group" role="radiogroup" aria-label="System Mode">
+          <button type="button" class="mode-toggle-btn active" id="btn-mode-mock" onclick="switchSystemMode('mock')" title="Simulation Environment">
+            <span class="mode-btn-dot"></span>
+            <span class="mode-btn-icon">🧪</span>
+            <span class="mode-btn-title">Mock Data</span>
+          </button>
+          <button type="button" class="mode-toggle-btn" id="btn-mode-real" onclick="switchSystemMode('real')" title="Physical Workstation Peripherals">
+            <span class="mode-btn-dot"></span>
+            <span class="mode-btn-icon">⚡</span>
+            <span class="mode-btn-title">Real Hardware</span>
+          </button>
+        </div>
+
+        <!-- Workstation Input Gating Status -->
+        <div class="enforcement-indicator-pill pill-unlocked" id="enforcement-badge" title="Workstation Input Gating State">
+          <span class="enforce-icon-dot"></span>
+          <span id="enforcement-badge-text">Workstation Unlocked</span>
+        </div>
+
         <div class="sync-indicator">
           <span class="live-dot" id="ws-dot"></span>
           <span class="sync-text" id="ws-status-text">Active Sync</span>
@@ -56,7 +76,7 @@
           <span id="platform-name">Windows WMI</span>
         </div>
 
-        <button class="btn btn-secondary btn-sm header-action-btn" onclick="openSimulatorTab()">
+        <button class="btn btn-secondary btn-sm header-action-btn" id="btn-header-sim" onclick="openSimulatorTab()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="16"></line>
@@ -69,6 +89,34 @@
 
     <!-- Main Workspace -->
     <main class="main-workspace">
+      <!-- Mode Status & Awareness Ribbon -->
+      <section class="mode-awareness-banner banner-mock" id="mode-awareness-banner">
+        <div class="banner-left-wrap">
+          <div class="mode-status-tag" id="mode-banner-tag">
+            <span class="mode-tag-dot"></span>
+            <span id="mode-banner-tag-text">MOCK SIMULATION ENVIRONMENT</span>
+          </div>
+          <div class="mode-description-text" id="mode-banner-desc">
+            Isolating physical peripherals: Operating in simulation mode to test USB arrival, matching rules, and authorization policies without affecting local hardware.
+          </div>
+        </div>
+        <div class="banner-right-actions">
+          <button class="btn btn-primary btn-sm" id="btn-scan-hardware" onclick="triggerHardwareScan()" style="display: none;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            </svg>
+            <span>Scan Physical Peripherals</span>
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btn-clear-sim" onclick="clearAllSimulations()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+            <span>Reset Virtual Endpoints</span>
+          </button>
+        </div>
+      </section>
+
       <!-- KPI Metrics Strip -->
       <section class="metrics-rail" aria-label="Workstation Metrics">
         <div class="metric-card" id="kpi-connected">
@@ -158,6 +206,92 @@
             <div class="empty-state-sub">All connected USB keyboards, mice, and pointing peripherals have been processed. Newly attached devices will appear here in real time.</div>
           </div>
           <div id="pending-cards" class="devices-grid"></div>
+        </div>
+      </section>
+
+      <!-- Interactive HID Input Gating & Verification Console -->
+      <section class="content-block sandbox-block" id="section-sandbox">
+        <div class="block-header">
+          <div class="block-title-group">
+            <div class="title-with-counter">
+              <h2>Zero-Trust Input Gating Console</h2>
+              <span class="counter-tag status-tag-live" id="sandbox-status-tag">HARDWARE GUARD ACTIVE</span>
+            </div>
+            <p class="block-description">Live verification of peripheral input gating. Keypresses and cursor movements from unauthorized or pending peripherals are blocked by the authenticator.</p>
+          </div>
+          <div class="block-controls">
+            <div class="gated-interfaces-pill" id="gated-interfaces-display">
+              <span class="pill-dot"></span>
+              <span id="gated-interfaces-text">All Endpoints Permitted</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sandbox-grid">
+          <!-- Keystroke Authenticator Box -->
+          <div class="sandbox-card" id="card-keyboard-test">
+            <div class="sandbox-card-header">
+              <div class="sandbox-card-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                  <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"></path>
+                </svg>
+                <span>Keyboard Input Gating Guard</span>
+              </div>
+              <span class="sandbox-state-badge badge-unlocked" id="keyboard-state-badge">UNLOCKED</span>
+            </div>
+            <div class="sandbox-card-body">
+              <div class="sandbox-input-wrap">
+                <input type="text" id="sandbox-keystroke-input" class="sandbox-test-input font-mono" placeholder="Type here to test keyboard input recognition..." autocomplete="off">
+                <div class="keystroke-lock-overlay" id="keystroke-lock-overlay">
+                  <div class="lock-shield-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                  </div>
+                  <div class="lock-shield-text">KEYSTROKES BLOCKED</div>
+                  <div class="lock-shield-sub">Approval required in authorization queue to permit typing.</div>
+                </div>
+              </div>
+              <div class="keystroke-stream-box font-mono" id="keystroke-stream-box">
+                <div class="stream-line text-muted">// Live Keystroke Verification Telemetry Stream</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pointer / Cursor Authenticator Box -->
+          <div class="sandbox-card" id="card-mouse-test">
+            <div class="sandbox-card-header">
+              <div class="sandbox-card-title">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="5" y="2" width="14" height="20" rx="7"></rect>
+                  <path d="M12 6v4"></path>
+                </svg>
+                <span>Pointer & Motion Gating Guard</span>
+              </div>
+              <span class="sandbox-state-badge badge-unlocked" id="mouse-state-badge">UNLOCKED</span>
+            </div>
+            <div class="sandbox-card-body">
+              <div class="mouse-pad-target" id="sandbox-mouse-pad">
+                <div class="mouse-pad-crosshair" id="mouse-crosshair"></div>
+                <div class="mouse-pad-info">
+                  <div class="font-mono text-xs" id="mouse-coords">Position: X: — Y: —</div>
+                  <div class="text-xs text-muted" id="mouse-status-hint">Move pointer inside this target area to test cursor tracking</div>
+                </div>
+                <div class="mouse-lock-overlay" id="mouse-lock-overlay">
+                  <div class="lock-shield-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                  </div>
+                  <div class="lock-shield-text">CURSOR GATED</div>
+                  <div class="lock-shield-sub">Pointer events restricted until device trust is granted.</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -411,13 +545,25 @@
             </svg>
           </div>
           <div class="modal-header-text">
-            <h3>Peripheral Authorization Request</h3>
+            <h3 id="modal-title-text">HID Authenticator &bull; Authorization Required</h3>
             <p id="modal-prompt-text">This device has not been registered. Do you want to approve it?</p>
           </div>
           <button class="modal-close-btn" onclick="closeAuthModal()" aria-label="Close dialog">&times;</button>
         </div>
 
         <div class="modal-content">
+          <div class="authenticator-modal-alert" id="modal-gated-alert">
+            <div class="alert-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <div class="alert-body">
+              <strong>Zero-Trust Input Gating Active:</strong> Typing and cursor operations from this peripheral are locked on this workstation until explicitly authorized.
+            </div>
+          </div>
+
           <div class="spec-table-box">
             <div class="spec-table-row">
               <span class="spec-label">Reported Name</span>
@@ -439,16 +585,25 @@
               <span class="spec-label">Interface Category</span>
               <span class="spec-val" id="modal-dev-interface">—</span>
             </div>
+            <div class="spec-table-row">
+              <span class="spec-label">Origin Source</span>
+              <span class="spec-val font-mono" id="modal-dev-source">—</span>
+            </div>
           </div>
 
           <div class="spec-advisory">
-            Authorizing this peripheral records it in your trusted device registry. Declining keeps it untrusted and records your decision in the audit trail.
+            Authorizing this peripheral records it in your trusted device registry and immediately unlocks workstation input. Declining keeps it untrusted and records your decision in the audit trail.
           </div>
         </div>
 
         <div class="modal-actions">
-          <button class="btn btn-ghost" id="modal-btn-reject">Decline Device</button>
-          <button class="btn btn-primary" id="modal-btn-approve">Authorize Device</button>
+          <button class="btn btn-danger-ghost" id="modal-btn-reject">Decline Device</button>
+          <button class="btn btn-primary" id="modal-btn-approve">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Authorize & Unlock Peripheral</span>
+          </button>
         </div>
       </div>
     </div>
@@ -495,6 +650,17 @@
           <button class="btn btn-danger" id="revoke-btn-confirm">Revoke Trust</button>
         </div>
       </div>
+    </div>
+
+    <!-- Workstation Global Input Lock HUD Alert -->
+    <div class="workstation-lock-hud" id="workstation-lock-hud" role="alert">
+      <span class="lock-hud-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </span>
+      <span id="lock-hud-text">INPUT GATED: Peripheral Pending Authorization</span>
     </div>
 
     <!-- Device Connection Screen Popup Banner Layer -->

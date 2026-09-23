@@ -10,6 +10,9 @@ let ws = null;
 let reconnectTimer = null;
 let searchQuery = '';
 let currentQueueFilter = 'all';
+let currentSystemMode = 'mock';
+let enforcementState = { is_locked: false, gated_interfaces: [], pending_count: 0 };
+let lockHudTimer = null;
 
 function setQueueFilter(filter) {
   currentQueueFilter = filter;
@@ -30,6 +33,14 @@ let tabCountTrusted, tabCountAll, tabCountHistory;
 let trustedTbody, allDevicesTbody, historyTbody, historyFilter, searchInput;
 let presetContainer, activeSimsList, customSimForm;
 let authModal, revokeModal, popupBannerContainer;
+
+// Mode & Enforcement DOM Elements
+let btnModeMock, btnModeReal, enforcementBadge, enforcementBadgeText;
+let modeAwarenessBanner, modeBannerTagText, modeBannerDesc, btnScanHardware, btnClearSim;
+let gatedInterfacesDisplay, gatedInterfacesText;
+let keyboardStateBadge, keystrokeLockOverlay, sandboxKeystrokeInput, keystrokeStreamBox;
+let mouseStateBadge, mouseLockOverlay, sandboxMousePad, mouseCrosshair, mouseCoords;
+let workstationLockHud, lockHudText, modalDevSource;
 
 function initDomReferences() {
   wsDot = document.getElementById('ws-dot');
@@ -62,17 +73,50 @@ function initDomReferences() {
   authModal = document.getElementById('auth-modal');
   revokeModal = document.getElementById('revoke-modal');
   popupBannerContainer = document.getElementById('device-popup-container');
+
+  btnModeMock = document.getElementById('btn-mode-mock');
+  btnModeReal = document.getElementById('btn-mode-real');
+  enforcementBadge = document.getElementById('enforcement-badge');
+  enforcementBadgeText = document.getElementById('enforcement-badge-text');
+
+  modeAwarenessBanner = document.getElementById('mode-awareness-banner');
+  modeBannerTagText = document.getElementById('mode-banner-tag-text');
+  modeBannerDesc = document.getElementById('mode-banner-desc');
+  btnScanHardware = document.getElementById('btn-scan-hardware');
+  btnClearSim = document.getElementById('btn-clear-sim');
+
+  gatedInterfacesDisplay = document.getElementById('gated-interfaces-display');
+  gatedInterfacesText = document.getElementById('gated-interfaces-text');
+
+  keyboardStateBadge = document.getElementById('keyboard-state-badge');
+  keystrokeLockOverlay = document.getElementById('keystroke-lock-overlay');
+  sandboxKeystrokeInput = document.getElementById('sandbox-keystroke-input');
+  keystrokeStreamBox = document.getElementById('keystroke-stream-box');
+
+  mouseStateBadge = document.getElementById('mouse-state-badge');
+  mouseLockOverlay = document.getElementById('mouse-lock-overlay');
+  sandboxMousePad = document.getElementById('sandbox-mouse-pad');
+  mouseCrosshair = document.getElementById('mouse-crosshair');
+  mouseCoords = document.getElementById('mouse-coords');
+
+  workstationLockHud = document.getElementById('workstation-lock-hud');
+  lockHudText = document.getElementById('lock-hud-text');
+  modalDevSource = document.getElementById('modal-dev-source');
 }
 
 // Init
-function init() {
+async function init() {
   initDomReferences();
   setupTabs();
   setupEventListeners();
   setupKeyboardShortcuts();
   setupNotificationPermissions();
-  loadSystemStatus();
-  refreshAllData();
+  setupSandboxTesters();
+  setupGlobalInputLockTrap();
+  await loadSystemStatus();
+  await loadSystemMode();
+  await refreshAllData();
+  await loadEnforcementStatus();
   initWebSocket();
 }
 
@@ -301,6 +345,19 @@ function initWebSocket() {
 
 function handleLiveEvent(data) {
   switch (data.type) {
+    case 'system_mode_changed':
+      applySystemModeUi(data.mode);
+      showToast(`Mode switched to ${data.mode === 'real' ? 'Real Hardware' : 'Mock Simulation'}`, 'info');
+      refreshAllData();
+      loadEnforcementStatus();
+      break;
+
+    case 'enforcement_state_changed':
+      if (data.enforcement) {
+        applyEnforcementStateUi(data.enforcement);
+      }
+      break;
+
     case 'auth_requested':
       showToast(`Authorization required: ${data.device.device_name || 'USB HID'}`, 'warning');
       showDeviceArrivalBanner(data.device, 'review');
@@ -310,6 +367,7 @@ function handleLiveEvent(data) {
         `New peripheral '${data.device.device_name}' plugged in. Approval required.`
       );
       refreshAllData();
+      loadEnforcementStatus();
       promptDeviceApproval(data.device, data.prompt);
       break;
 
@@ -323,30 +381,36 @@ function handleLiveEvent(data) {
       );
       showToast(`Connected: ${data.device.device_name}`, isAuth ? 'success' : 'info');
       refreshAllData();
+      loadEnforcementStatus();
       break;
 
     case 'device_approved':
       showToast(`Authorized: ${data.device.device_name}`, 'success');
       refreshAllData();
+      loadEnforcementStatus();
       break;
 
     case 'device_rejected':
       showToast(`Declined: ${data.device.device_name}`, 'danger');
       refreshAllData();
+      loadEnforcementStatus();
       break;
 
     case 'trust_revoked':
       showToast(`Trust revoked: ${data.device.device_name}`, 'info');
       refreshAllData();
+      loadEnforcementStatus();
       break;
 
     case 'device_disconnected':
       showToast(`Detached: ${data.device.device_name}`, 'info');
       refreshAllData();
+      loadEnforcementStatus();
       break;
 
     default:
       refreshAllData();
+      loadEnforcementStatus();
   }
 }
 
@@ -359,9 +423,24 @@ async function loadSystemStatus() {
     if (res.ok) {
       const data = await res.json();
       platformBadge.textContent = data.platform === 'win32' ? 'Windows WMI' : data.platform;
+      if (data.mode) {
+        applySystemModeUi(data.mode);
+      }
     }
   } catch (e) {
     console.error('Failed to load system status', e);
+  }
+}
+
+async function loadSystemMode() {
+  try {
+    const res = await fetch('/api/system/mode');
+    if (res.ok) {
+      const data = await res.json();
+      applySystemModeUi(data.mode);
+    }
+  } catch (e) {
+    console.error('Failed to load system mode', e);
   }
 }
 
@@ -372,13 +451,14 @@ async function refreshAllData() {
     loadTrustedDevices(),
     loadAllDevices(),
     loadHistory(),
-    loadSimulatorData()
+    loadSimulatorData(),
+    loadEnforcementStatus()
   ]);
 }
 
 async function loadStats() {
   try {
-    const res = await fetch('/api/devices/stats');
+    const res = await fetch(`/api/devices/stats?source=${encodeURIComponent(currentSystemMode)}`);
     if (res.ok) {
       const stats = await res.json();
       countConnected.textContent = stats.connected_devices_count;
@@ -393,10 +473,11 @@ async function loadStats() {
 
 async function loadPendingDevices() {
   try {
-    const res = await fetch('/api/devices?status=pending_authentication');
+    const res = await fetch(`/api/devices?status=pending_authentication&source=${encodeURIComponent(currentSystemMode)}`);
     if (res.ok) {
       let devices = await res.json();
       pendingCountBadge.textContent = devices.length;
+
 
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -514,7 +595,7 @@ function renderDeviceCard(device) {
 
 async function loadTrustedDevices() {
   try {
-    const res = await fetch('/api/devices?status=authenticated');
+    const res = await fetch(`/api/devices?status=authenticated&source=${encodeURIComponent(currentSystemMode)}`);
     if (res.ok) {
       let devices = await res.json();
       tabCountTrusted.textContent = devices.length;
@@ -568,7 +649,7 @@ async function loadTrustedDevices() {
 
 async function loadAllDevices() {
   try {
-    const res = await fetch('/api/devices');
+    const res = await fetch(`/api/devices?source=${encodeURIComponent(currentSystemMode)}`);
     if (res.ok) {
       let devices = await res.json();
       tabCountAll.textContent = devices.length;
@@ -630,7 +711,7 @@ function renderDeviceActionButtons(d, formattedVidPid) {
 async function loadHistory() {
   try {
     const filter = historyFilter.value;
-    let url = '/api/events?limit=50';
+    let url = `/api/events?limit=50&source=${encodeURIComponent(currentSystemMode)}`;
     if (filter) {
       url += `&event_type=${filter}`;
     }
@@ -639,6 +720,7 @@ async function loadHistory() {
     if (res.ok) {
       const events = await res.json();
       tabCountHistory.textContent = events.length;
+
 
       if (events.length === 0) {
         historyTbody.innerHTML = `<tr><td colspan="5" class="empty-table-row">No audit records found.</td></tr>`;
@@ -705,14 +787,26 @@ async function loadSimulatorData() {
 // Interactive Approval & Revocation
 // -------------------------------------------------------------
 function promptDeviceApproval(device, promptText) {
+  if (!device) return;
   currentPendingDeviceId = device.id;
 
-  document.getElementById('modal-prompt-text').textContent = promptText || "This peripheral is not registered. Authorize for this workstation?";
+  const titleEl = document.getElementById('modal-title-text');
+  if (titleEl) {
+    titleEl.textContent = `HID Authenticator • ${escapeHtml(device.interface_type || 'Peripheral')} Authorization`;
+  }
+  document.getElementById('modal-prompt-text').textContent = promptText || "Untrusted peripheral detected. Input access is locked until authorized.";
   document.getElementById('modal-dev-name').textContent = device.device_name || "USB Peripheral";
   document.getElementById('modal-dev-mfg').textContent = device.manufacturer || "Standard USB Device";
   document.getElementById('modal-dev-vidpid').textContent = formatVidPid(device.vendor_id, device.product_id);
   document.getElementById('modal-dev-serial').textContent = device.serial_number || "None";
   document.getElementById('modal-dev-interface').textContent = device.interface_type || "HID";
+  
+  const elSource = document.getElementById('modal-dev-source');
+  if (elSource) {
+    elSource.textContent = (device.source === 'real' || !device.source)
+      ? 'Physical Host Hardware (Windows WMI)'
+      : 'Virtual Emulation Endpoint';
+  }
 
   authModal.classList.add('show');
 }
@@ -727,7 +821,9 @@ async function handleApproveDevice(deviceId) {
     const res = await fetch(`/api/devices/${deviceId}/approve`, { method: 'POST' });
     if (res.ok) {
       closeAuthModal();
-      refreshAllData();
+      showToast('Peripheral authorized & input unlocked', 'success');
+      await refreshAllData();
+      await loadEnforcementStatus();
     } else {
       const err = await res.json();
       showToast(err.detail || 'Authorization failed', 'danger');
@@ -742,7 +838,9 @@ async function handleRejectDevice(deviceId) {
     const res = await fetch(`/api/devices/${deviceId}/reject`, { method: 'POST' });
     if (res.ok) {
       closeAuthModal();
-      refreshAllData();
+      showToast('Peripheral declined — input remains blocked', 'danger');
+      await refreshAllData();
+      await loadEnforcementStatus();
     } else {
       const err = await res.json();
       showToast(err.detail || 'Decline failed', 'danger');
@@ -751,6 +849,7 @@ async function handleRejectDevice(deviceId) {
     showToast('Network error while declining device', 'danger');
   }
 }
+
 
 function promptRevokeTrust(deviceId, name, vidpid) {
   currentRevokeDeviceId = deviceId;
@@ -1053,6 +1152,234 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+// -------------------------------------------------------------
+// System Mode & Workstation Input Gating Helpers
+// -------------------------------------------------------------
+async function switchSystemMode(newMode) {
+  try {
+    const res = await fetch('/api/system/mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: newMode })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      applySystemModeUi(data.mode);
+      showToast(`Switched to ${data.mode === 'real' ? 'Real Hardware' : 'Mock Simulation'} Mode`, 'info');
+      await refreshAllData();
+      await loadEnforcementStatus();
+
+      if (data.mode === 'real') {
+        showToast('Real-time physical HID scan active', 'success');
+      }
+    }
+  } catch (e) {
+    showToast('Failed to switch system mode', 'danger');
+  }
+}
+
+async function triggerHardwareScan() {
+  showToast('Scanning host physical peripherals (WMI)...', 'info');
+  await switchSystemMode('real');
+}
+
+async function clearAllSimulations() {
+  try {
+    const res = await fetch('/api/simulator/clear', { method: 'POST' });
+    if (res.ok) {
+      showToast('All virtual endpoints cleared', 'info');
+      await refreshAllData();
+      await loadEnforcementStatus();
+    }
+  } catch (e) {
+    showToast('Failed to clear virtual endpoints', 'danger');
+  }
+}
+
+function applySystemModeUi(mode) {
+  currentSystemMode = mode;
+
+  if (btnModeMock && btnModeReal) {
+    if (mode === 'real') {
+      btnModeReal.classList.add('active');
+      btnModeReal.setAttribute('aria-checked', 'true');
+      btnModeMock.classList.remove('active');
+      btnModeMock.setAttribute('aria-checked', 'false');
+    } else {
+      btnModeMock.classList.add('active');
+      btnModeMock.setAttribute('aria-checked', 'true');
+      btnModeReal.classList.remove('active');
+      btnModeReal.setAttribute('aria-checked', 'false');
+    }
+  }
+
+  if (modeAwarenessBanner) {
+    if (mode === 'real') {
+      modeAwarenessBanner.className = 'mode-awareness-banner banner-real';
+      if (modeBannerTagText) modeBannerTagText.textContent = 'LIVE HARDWARE ENVIRONMENT';
+      if (modeBannerDesc) modeBannerDesc.textContent = 'Host Peripheral Monitoring Active: Real physical USB keyboards, mice, and HID controllers on this workstation are monitored in real time.';
+      if (btnScanHardware) btnScanHardware.style.display = 'inline-flex';
+      if (btnClearSim) btnClearSim.style.display = 'none';
+    } else {
+      modeAwarenessBanner.className = 'mode-awareness-banner banner-mock';
+      if (modeBannerTagText) modeBannerTagText.textContent = 'MOCK SIMULATION ENVIRONMENT';
+      if (modeBannerDesc) modeBannerDesc.textContent = 'Isolating physical peripherals: Operating in simulation mode to test USB arrival, matching rules, and authorization policies without affecting local hardware.';
+      if (btnScanHardware) btnScanHardware.style.display = 'none';
+      if (btnClearSim) btnClearSim.style.display = 'inline-flex';
+    }
+  }
+}
+
+async function loadEnforcementStatus() {
+  try {
+    const res = await fetch('/api/system/enforcement');
+    if (res.ok) {
+      const status = await res.json();
+      applyEnforcementStateUi(status);
+    }
+  } catch (e) {
+    console.error('Failed to load enforcement status', e);
+  }
+}
+
+function applyEnforcementStateUi(status) {
+  enforcementState = status;
+
+  if (enforcementBadge && enforcementBadgeText) {
+    if (status.is_locked) {
+      enforcementBadge.className = 'enforcement-indicator-pill pill-locked';
+      enforcementBadgeText.textContent = `INPUT GATED (${status.pending_count})`;
+    } else {
+      enforcementBadge.className = 'enforcement-indicator-pill pill-unlocked';
+      enforcementBadgeText.textContent = 'Workstation Unlocked';
+    }
+  }
+
+  if (gatedInterfacesDisplay && gatedInterfacesText) {
+    if (status.is_locked) {
+      gatedInterfacesDisplay.classList.add('gated-active');
+      const ifaces = status.gated_interfaces.length > 0 ? status.gated_interfaces.join(', ') : 'All HID';
+      gatedInterfacesText.textContent = `Gated Endpoints: ${ifaces}`;
+    } else {
+      gatedInterfacesDisplay.classList.remove('gated-active');
+      gatedInterfacesText.textContent = 'All Endpoints Permitted';
+    }
+  }
+
+  const isKbGated = status.is_locked && (status.gated_interfaces.includes('Keyboard') || status.gated_interfaces.length === 0);
+  const isMouseGated = status.is_locked && (status.gated_interfaces.includes('Mouse') || status.gated_interfaces.length === 0);
+
+  if (keyboardStateBadge) {
+    keyboardStateBadge.className = `sandbox-state-badge ${isKbGated ? 'badge-locked' : 'badge-unlocked'}`;
+    keyboardStateBadge.textContent = isKbGated ? 'LOCKED' : 'UNLOCKED';
+  }
+  if (keystrokeLockOverlay) {
+    if (isKbGated) keystrokeLockOverlay.classList.add('active');
+    else keystrokeLockOverlay.classList.remove('active');
+  }
+
+  if (mouseStateBadge) {
+    mouseStateBadge.className = `sandbox-state-badge ${isMouseGated ? 'badge-locked' : 'badge-unlocked'}`;
+    mouseStateBadge.textContent = isMouseGated ? 'LOCKED' : 'UNLOCKED';
+  }
+  if (mouseLockOverlay) {
+    if (isMouseGated) mouseLockOverlay.classList.add('active');
+    else mouseLockOverlay.classList.remove('active');
+  }
+
+  // If there are pending devices and modal is not open, pop it up
+  if (status.is_locked && status.pending_devices && status.pending_devices.length > 0) {
+    if (authModal && !authModal.classList.contains('show')) {
+      promptDeviceApproval(status.pending_devices[0]);
+    }
+  }
+}
+
+function setupGlobalInputLockTrap() {
+  window.addEventListener('keydown', (e) => {
+    // If auth modal is open, or focused inside an input/button or search bar, allow it
+    if (authModal && authModal.classList.contains('show')) return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT')) return;
+
+    if (enforcementState.is_locked) {
+      if (enforcementState.gated_interfaces.includes('Keyboard') || enforcementState.gated_interfaces.length === 0) {
+        showWorkstationLockHud('⚠️ WORKSTATION LOCKED: Untrusted peripheral detected. Approve in the popup to unlock typing.');
+        playArrivalChime('review');
+      }
+    }
+  }, true);
+}
+
+function showWorkstationLockHud(text) {
+  if (!workstationLockHud) return;
+  if (lockHudText) lockHudText.textContent = text;
+  workstationLockHud.classList.add('show');
+  if (lockHudTimer) clearTimeout(lockHudTimer);
+  lockHudTimer = setTimeout(() => {
+    workstationLockHud.classList.remove('show');
+  }, 2400);
+}
+
+function setupSandboxTesters() {
+  if (sandboxKeystrokeInput) {
+    sandboxKeystrokeInput.addEventListener('keydown', (e) => {
+      // Ignore Tab, Shift, Ctrl, Alt alone
+      if (['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) return;
+
+      const isKbGated = enforcementState.is_locked && (enforcementState.gated_interfaces.includes('Keyboard') || enforcementState.gated_interfaces.length === 0);
+
+      if (isKbGated) {
+        e.preventDefault();
+        showWorkstationLockHud('⚠️ KEYSTROKE INTERCEPTED: Peripheral Authorization Required');
+        playArrivalChime('review');
+
+        const line = document.createElement('div');
+        line.className = 'stream-line stream-blocked';
+        line.innerHTML = `⛔ [${new Date().toLocaleTimeString()}] BLOCKED KEY <kbd>${escapeHtml(e.key)}</kbd> &bull; UNAUTHORIZED PERIPHERAL GATED`;
+        if (keystrokeStreamBox) {
+          keystrokeStreamBox.insertBefore(line, keystrokeStreamBox.firstChild);
+          if (keystrokeStreamBox.children.length > 20) keystrokeStreamBox.removeChild(keystrokeStreamBox.lastChild);
+        }
+      } else {
+        const line = document.createElement('div');
+        line.className = 'stream-line stream-success';
+        line.innerHTML = `✅ [${new Date().toLocaleTimeString()}] ACCEPTED <kbd>${escapeHtml(e.key)}</kbd> &bull; Trusted Peripheral Verified (1.2ms latency)`;
+        if (keystrokeStreamBox) {
+          keystrokeStreamBox.insertBefore(line, keystrokeStreamBox.firstChild);
+          if (keystrokeStreamBox.children.length > 20) keystrokeStreamBox.removeChild(keystrokeStreamBox.lastChild);
+        }
+      }
+    });
+  }
+
+  if (sandboxMousePad) {
+    sandboxMousePad.addEventListener('mousemove', (e) => {
+      const rect = sandboxMousePad.getBoundingClientRect();
+      const x = Math.round(e.clientX - rect.left);
+      const y = Math.round(e.clientY - rect.top);
+
+      const isMouseGated = enforcementState.is_locked && (enforcementState.gated_interfaces.includes('Mouse') || enforcementState.gated_interfaces.length === 0);
+
+      if (isMouseGated) {
+        if (mouseCrosshair) mouseCrosshair.style.display = 'none';
+        if (mouseCoords) mouseCoords.textContent = 'Position: MOTION GATED';
+      } else {
+        if (mouseCrosshair) {
+          mouseCrosshair.style.display = 'block';
+          mouseCrosshair.style.left = `${x}px`;
+          mouseCrosshair.style.top = `${y}px`;
+        }
+        if (mouseCoords) mouseCoords.textContent = `Position: X: ${x}px  Y: ${y}px  (Verified Live Input)`;
+      }
+    });
+
+    sandboxMousePad.addEventListener('mouseleave', () => {
+      if (mouseCrosshair) mouseCrosshair.style.display = 'none';
+      if (mouseCoords) mouseCoords.textContent = 'Position: X: — Y: —';
+    });
+  }
+}
+
 // Global Window Bindings for HTML Event Triggers
 window.openSimulatorTab = openSimulatorTab;
 window.closeAuthModal = closeAuthModal;
@@ -1071,5 +1398,10 @@ window.approveFromBanner = approveFromBanner;
 window.focusDeviceInRegistry = focusDeviceInRegistry;
 window.setQueueFilter = setQueueFilter;
 window.refreshAllData = refreshAllData;
+window.switchSystemMode = switchSystemMode;
+window.triggerHardwareScan = triggerHardwareScan;
+window.clearAllSimulations = clearAllSimulations;
+window.showWorkstationLockHud = showWorkstationLockHud;
+
 
 

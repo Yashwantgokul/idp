@@ -49,6 +49,7 @@ class CommonDeviceEvent(BaseModel):
 
     # Optional internal hardware identifier or instance path for OS correlation
     hardware_id: Optional[str] = Field(None, description="Operating system specific device path/ID")
+    source: str = Field("real", description="Data source: 'real' (hardware) or 'mock' (simulated)")
 
 
 class DeviceRecord(BaseModel):
@@ -70,6 +71,7 @@ class DeviceRecord(BaseModel):
     approved_at: Optional[datetime] = None
     is_connected: bool = True
     hardware_id: Optional[str] = None
+    source: str = "real"
 
 
 class EventRecord(BaseModel):
@@ -97,3 +99,22 @@ class OverviewStats(BaseModel):
     trusted_devices_count: int
     pending_devices_count: int
     total_events_count: int
+
+
+class SystemModePayload(BaseModel):
+    mode: str = Field(..., description="'mock' or 'real'")
+
+
+class SystemModeResponse(BaseModel):
+    mode: str
+    success: bool
+    message: str
+
+
+class EnforcementStatus(BaseModel):
+    is_locked: bool
+    mode: str
+    pending_count: int
+    gated_interfaces: list[str]
+    pending_devices: list[DeviceRecord]
+

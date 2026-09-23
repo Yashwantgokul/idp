@@ -71,7 +71,6 @@ def _send_toast_worker(title: str, body: str) -> None:
     except Exception as e:
         logger.debug(f"Failed to send Windows native notification: {e}")
 
-
 def notify_device_event(title: str, body: str) -> None:
     """
     Fire-and-forget native Windows toast notification in a daemon thread.

@@ -112,7 +112,8 @@ class SimulatorDeviceAdapter(BaseDeviceAdapter):
             interface_type=interface_type,
             connection_type=connection_type,
             detected_at=datetime.now(timezone.utc),
-            hardware_id=hw_id
+            hardware_id=hw_id,
+            source="mock"
         )
 
         self._connected_simulations[hw_id] = event
@@ -132,3 +133,10 @@ class SimulatorDeviceAdapter(BaseDeviceAdapter):
                 self._on_device_disconnected(hardware_id)
             return True
         return False
+
+    def clear_all(self):
+        """Disconnect all active simulated devices."""
+        hw_ids = list(self._connected_simulations.keys())
+        for hw_id in hw_ids:
+            self.simulate_disconnect(hw_id)
+

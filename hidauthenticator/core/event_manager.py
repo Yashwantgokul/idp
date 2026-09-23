@@ -55,21 +55,24 @@ class EventManager:
         self,
         device_id: Optional[int] = None,
         event_type: Optional[EventType] = None,
+        source: Optional[str] = None,
         limit: int = 100,
         offset: int = 0
     ) -> List[EventRecord]:
         """
-        Retrieve paginated event history.
+        Retrieve paginated event history, optionally filtered by mode/source.
         """
         return self.db.list_events(
             device_id=device_id,
             event_type=event_type,
+            source=source,
             limit=limit,
             offset=offset
         )
 
-    def get_total_events_count(self) -> int:
-        return self.db.count_events()
+    def get_total_events_count(self, source: Optional[str] = None) -> int:
+        return self.db.count_events(source=source)
+
 
 
 # Global instance
