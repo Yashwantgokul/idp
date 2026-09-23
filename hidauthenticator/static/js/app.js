@@ -9,6 +9,18 @@ let currentRevokeDeviceId = null;
 let ws = null;
 let reconnectTimer = null;
 let searchQuery = '';
+let currentQueueFilter = 'all';
+
+function setQueueFilter(filter) {
+  currentQueueFilter = filter;
+  document.querySelectorAll('.queue-filter-pill').forEach(pill => {
+    pill.classList.remove('active');
+  });
+  const activePill = document.getElementById(`filter-pill-${filter}`) || document.querySelector(`[data-filter="${filter}"]`);
+  if (activePill) activePill.classList.add('active');
+  loadPendingDevices();
+}
+window.setQueueFilter = setQueueFilter;
 
 // DOM Elements
 const wsDot = document.getElementById('ws-dot');
@@ -193,12 +205,54 @@ async function loadPendingDevices() {
         );
       }
 
-      if (devices.length === 0) {
+      // Compute category counts for filter pills
+      const countAll = devices.length;
+      const countKeyboards = devices.filter(d => 
+        (d.interface_type && d.interface_type.toLowerCase() === 'keyboard') ||
+        (d.device_name && d.device_name.toLowerCase().includes('keyboard'))
+      ).length;
+      const countMice = devices.filter(d => 
+        (d.interface_type && d.interface_type.toLowerCase() === 'mouse') ||
+        (d.device_name && (d.device_name.toLowerCase().includes('mouse') || d.device_name.toLowerCase().includes('touch pad') || d.device_name.toLowerCase().includes('trackpad')))
+      ).length;
+      const countOther = countAll - countKeyboards - countMice;
+
+      const elAll = document.getElementById('filter-count-all');
+      const elKb = document.getElementById('filter-count-keyboard');
+      const elMouse = document.getElementById('filter-count-mouse');
+      const elOther = document.getElementById('filter-count-other');
+      if (elAll) elAll.textContent = countAll;
+      if (elKb) elKb.textContent = countKeyboards;
+      if (elMouse) elMouse.textContent = countMice;
+      if (elOther) elOther.textContent = Math.max(0, countOther);
+
+      // Apply category filter
+      let filteredDevices = devices;
+      if (currentQueueFilter === 'Keyboard') {
+        filteredDevices = devices.filter(d => 
+          (d.interface_type && d.interface_type.toLowerCase() === 'keyboard') ||
+          (d.device_name && d.device_name.toLowerCase().includes('keyboard'))
+        );
+      } else if (currentQueueFilter === 'Mouse') {
+        filteredDevices = devices.filter(d => 
+          (d.interface_type && d.interface_type.toLowerCase() === 'mouse') ||
+          (d.device_name && (d.device_name.toLowerCase().includes('mouse') || d.device_name.toLowerCase().includes('touch pad') || d.device_name.toLowerCase().includes('trackpad')))
+        );
+      } else if (currentQueueFilter === 'HID') {
+        filteredDevices = devices.filter(d => 
+          !(d.interface_type && d.interface_type.toLowerCase() === 'keyboard') &&
+          !(d.device_name && d.device_name.toLowerCase().includes('keyboard')) &&
+          !(d.interface_type && d.interface_type.toLowerCase() === 'mouse') &&
+          !(d.device_name && (d.device_name.toLowerCase().includes('mouse') || d.device_name.toLowerCase().includes('touch pad') || d.device_name.toLowerCase().includes('trackpad')))
+        );
+      }
+
+      if (filteredDevices.length === 0) {
         pendingEmpty.style.display = 'block';
         pendingCards.innerHTML = '';
       } else {
         pendingEmpty.style.display = 'none';
-        pendingCards.innerHTML = devices.map(d => renderDeviceCard(d)).join('');
+        pendingCards.innerHTML = filteredDevices.map(d => renderDeviceCard(d)).join('');
       }
     }
   } catch (e) {
@@ -588,17 +642,27 @@ function openSimulatorTab() {
 }
 
 function setupEventListeners() {
-  document.getElementById('modal-btn-approve').addEventListener('click', () => {
-    if (currentPendingDeviceId) handleApproveDevice(currentPendingDeviceId);
-  });
+  const btnApprove = document.getElementById('modal-btn-approve');
+  if (btnApprove) {
+    btnApprove.addEventListener('click', () => {
+      if (currentPendingDeviceId) handleApproveDevice(currentPendingDeviceId);
+    });
+  }
 
-  document.getElementById('modal-btn-reject').addEventListener('click', () => {
-    if (currentPendingDeviceId) handleRejectDevice(currentPendingDeviceId);
-  });
+  const btnReject = document.getElementById('modal-btn-reject');
+  if (btnReject) {
+    btnReject.addEventListener('click', () => {
+      if (currentPendingDeviceId) handleRejectDevice(currentPendingDeviceId);
+    });
+  }
 
-  document.getElementById('revoke-btn-confirm').addEventListener('click', confirmRevokeTrust);
-  document.getElementById('btn-global-refresh').addEventListener('click', refreshAllData);
-  historyFilter.addEventListener('change', loadHistory);
+  const btnRevoke = document.getElementById('revoke-btn-confirm');
+  if (btnRevoke) btnRevoke.addEventListener('click', confirmRevokeTrust);
+
+  const btnRefresh = document.getElementById('btn-global-refresh');
+  if (btnRefresh) btnRefresh.addEventListener('click', refreshAllData);
+
+  if (historyFilter) historyFilter.addEventListener('change', loadHistory);
 
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
@@ -609,33 +673,35 @@ function setupEventListeners() {
     });
   }
 
-  customSimForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = {
-      device_name: document.getElementById('custom-name').value,
-      manufacturer: document.getElementById('custom-mfg').value || null,
-      vendor_id: document.getElementById('custom-vid').value || null,
-      product_id: document.getElementById('custom-pid').value || null,
-      serial_number: document.getElementById('custom-serial').value || null,
-      interface_type: document.getElementById('custom-interface').value,
-      connection_type: document.getElementById('custom-conn').value
-    };
+  if (customSimForm) {
+    customSimForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        device_name: document.getElementById('custom-name') ? document.getElementById('custom-name').value : '',
+        manufacturer: document.getElementById('custom-mfg') ? document.getElementById('custom-mfg').value || null : null,
+        vendor_id: document.getElementById('custom-vid') ? document.getElementById('custom-vid').value || null : null,
+        product_id: document.getElementById('custom-pid') ? document.getElementById('custom-pid').value || null : null,
+        serial_number: document.getElementById('custom-serial') ? document.getElementById('custom-serial').value || null : null,
+        interface_type: document.getElementById('custom-interface') ? document.getElementById('custom-interface').value : 'Keyboard',
+        connection_type: document.getElementById('custom-conn') ? document.getElementById('custom-conn').value : 'USB'
+      };
 
-    try {
-      const res = await fetch('/api/simulator/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        showToast(`Attached: ${payload.device_name}`, 'info');
-        customSimForm.reset();
-        refreshAllData();
+      try {
+        const res = await fetch('/api/simulator/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          showToast(`Attached: ${payload.device_name}`, 'info');
+          customSimForm.reset();
+          refreshAllData();
+        }
+      } catch (err) {
+        showToast('Simulation failed', 'danger');
       }
-    } catch (err) {
-      showToast('Simulation failed', 'danger');
-    }
-  });
+    });
+  }
 }
 
 function setupKeyboardShortcuts() {
@@ -783,3 +849,16 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// Global Window Bindings for HTML Event Triggers
+window.openSimulatorTab = openSimulatorTab;
+window.closeAuthModal = closeAuthModal;
+window.closeRevokeModal = closeRevokeModal;
+window.copyToClipboard = copyToClipboard;
+window.handleApproveDevice = handleApproveDevice;
+window.handleRejectDevice = handleRejectDevice;
+window.promptRevokeTrust = promptRevokeTrust;
+window.simulateQuickPreset = simulateQuickPreset;
+window.simulateUnplug = simulateUnplug;
+window.setQueueFilter = setQueueFilter;
+window.refreshAllData = refreshAllData;

@@ -390,6 +390,41 @@ body {
   margin-top: 0.2rem;
 }
 
+/* Category Filter Bar */
+.queue-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.15rem;
+  flex-wrap: wrap;
+}
+
+.queue-filter-pill {
+  background: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+  user-select: none;
+}
+
+.queue-filter-pill:hover {
+  color: var(--text-primary);
+  border-color: var(--border-active);
+}
+
+.queue-filter-pill.active {
+  background: var(--surface-raised);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.22);
+  font-weight: 600;
+}
+
 /* Review Devices Grid */
 .devices-grid {
   display: grid;
@@ -784,14 +819,15 @@ body {
 }
 
 .btn-danger-ghost {
-  background: transparent;
-  color: #f87171;
-  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.22);
 }
 
 .btn-danger-ghost:hover {
-  background: var(--rose-subtle);
-  border-color: var(--rose-border);
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ffffff;
 }
 
 .btn-danger {

@@ -139,6 +139,13 @@
           </div>
         </div>
 
+        <div class="queue-filter-bar" id="queue-filter-bar">
+          <button class="queue-filter-pill active" id="filter-pill-all" onclick="setQueueFilter('all')">All (<span id="filter-count-all">0</span>)</button>
+          <button class="queue-filter-pill" id="filter-pill-Keyboard" onclick="setQueueFilter('Keyboard')">Keyboards (<span id="filter-count-keyboard">0</span>)</button>
+          <button class="queue-filter-pill" id="filter-pill-Mouse" onclick="setQueueFilter('Mouse')">Mice (<span id="filter-count-mouse">0</span>)</button>
+          <button class="queue-filter-pill" id="filter-pill-HID" onclick="setQueueFilter('HID')">Other HID (<span id="filter-count-other">0</span>)</button>
+        </div>
+
         <div id="pending-container" class="queue-container">
           <div class="empty-state-card" id="pending-empty">
             <div class="empty-icon-wrap">
@@ -494,6 +501,6 @@
     <div class="toast-stack" id="toast-container" aria-live="polite"></div>
   </div>
 
-  <script src="/static/js/app.js?v=3.1"></script>
+  <script src="/static/js/app.js?v=3.3"></script>
 </body>
 </html>
