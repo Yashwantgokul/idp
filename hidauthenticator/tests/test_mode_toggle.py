@@ -3,9 +3,16 @@ Unit tests for Mock vs Real Data Mode toggle and isolation.
 """
 
 import unittest
+import tempfile
+from pathlib import Path
+
+from core.database import db
+temp_dir_obj = tempfile.TemporaryDirectory()
+db.db_file = Path(temp_dir_obj.name) / "test_mode.db"
+db.init_db()
+
 from fastapi.testclient import TestClient
 from api.server import app
-from core.database import db
 from core.models import DeviceStatus
 
 

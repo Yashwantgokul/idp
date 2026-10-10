@@ -3,10 +3,17 @@ API endpoint tests for HID Authenticator (SYMPACT MVP).
 """
 
 import unittest
-from fastapi.testclient import TestClient
+import tempfile
+from pathlib import Path
 
-from api.server import app
 from core.database import db
+# Redirect database to temporary file before importing server
+temp_dir_obj = tempfile.TemporaryDirectory()
+db.db_file = Path(temp_dir_obj.name) / "test_api.db"
+db.init_db()
+
+from fastapi.testclient import TestClient
+from api.server import app
 from core.models import DeviceStatus
 
 

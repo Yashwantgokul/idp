@@ -3,9 +3,16 @@ Unit tests for Input Enforcement Gating and Lockout.
 """
 
 import unittest
+import tempfile
+from pathlib import Path
+
+from core.database import db
+temp_dir_obj = tempfile.TemporaryDirectory()
+db.db_file = Path(temp_dir_obj.name) / "test_enforce.db"
+db.init_db()
+
 from fastapi.testclient import TestClient
 from api.server import app
-from core.database import db
 from core.enforcement import enforcement_mgr
 from core.trust_manager import trust_mgr
 from core.models import CommonDeviceEvent, DeviceStatus

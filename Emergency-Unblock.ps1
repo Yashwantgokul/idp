@@ -1,0 +1,1 @@
+$disabled = Get-PnpDevice | Where-Object { $_.Status -eq 'Error' -or $_.Status -eq 'Degraded' -or $_.ConfigManagerErrorCode -eq 22 }; if ($disabled) { Write-Host "Found disabled devices, enabling..."; $disabled | Enable-PnpDevice -Confirm:$false; Write-Host "Devices enabled successfully!" } else { Write-Host "No disabled devices found." }; Read-Host "Press Enter to exit"
